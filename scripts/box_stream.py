@@ -115,7 +115,9 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
             aspect = bw / float(bh)
             rect_area = bw * bh
             rectangularity = area / rect_area if rect_area else 0
-            if 0.3 < aspect < 3.5 and rectangularity > 0.60:
+            # if 0.3 < aspect < 3.5 and rectangularity > 0.60:
+            # widen aspect ratio and allow slightly messier rectangles
+            if 0.2 < aspect < 6.0 and rectangularity > 0.45:
                 detections += 1
                 cv2.rectangle(img, (x, y), (x + bw, y + bh), (0, 255, 0), 2)
                 cv2.putText(img, "BOX", (x, y - 6),
