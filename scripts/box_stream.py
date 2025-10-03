@@ -87,11 +87,15 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
     edges = cv2.dilate(edges, None, iterations=2)
     # close small gaps in edges (helps form clean contours)
     edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, None, iterations=1)
-    
+
     cnts, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    min_area = (w * h) * 0.002
-    max_area = (w * h) * 0.80
+    # min_area = (w * h) * 0.002
+    # max_area = (w * h) * 0.80
+
+    min_area = (w * h) * 0.0006   # accept smaller candidates
+    max_area = (w * h) * 0.95     # allow larger boxes near frame size
+
 
     detections = 0
     for c in cnts:
@@ -100,7 +104,9 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
             continue
 
         peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        # approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        # slightly tighter epsilon keeps corners better
+        approx = cv2.approxPolyDP(c, 0.015 * peri, True)
 
         if len(approx) == 4 and cv2.isContourConvex(approx):
             x, y, bw, bh = cv2.boundingRect(approx)
@@ -109,7 +115,9 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
             aspect = bw / float(bh)
             rect_area = bw * bh
             rectangularity = area / rect_area if rect_area else 0
-            if 0.3 < aspect < 3.5 and rectangularity > 0.60:
+            # if 0.3 < aspect < 3.5 and rectangularity > 0.60:
+            # widen aspect ratio and allow slightly messier rectangles
+            if 0.2 < aspect < 6.0 and rectangularity > 0.45:
                 detections += 1
                 cv2.rectangle(img, (x, y), (x + bw, y + bh), (0, 255, 0), 2)
                 cv2.putText(img, "BOX", (x, y - 6),
