@@ -1,138 +1,191 @@
+# touched: snapshot-endpoint test 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-PiCam-BoxDetector — Flask MJPEG stream with simple contour-based box detection.
+PiCam Box Detector — Raspberry Pi 3 Model B + PiCam v2.1
+Streams MJPEG video with rectangular "box" detection (edges → contours → 4-vertex approx)
+and provides a /snapshot endpoint to save before/after images to samples/.
 
-# Author: Caoilte Donohoe
-# Project: PiCam-BoxDetector
-# Created: 2025-10-03
-# Python: 3.9+ on Raspberry Pi OS
+Endpoints
+---------
+/          : index with links
+/video     : MJPEG stream with detections + box count overlay
+/snapshot  : capture one frame, save original & detected JPGs into samples/
 
-Hardware: Raspberry Pi 3B, PiCam v2.1 (IMX219)
-Stack: Python 3, Picamera2/libcamera, OpenCV, Flask
+Quick Start (on Raspberry Pi OS)
+--------------------------------
+sudo apt update && sudo apt -y upgrade
+sudo apt -y install python3-picamera2 python3-opencv python3-flask libatlas-base-dev python3-numpy
+python3 scripts/box_stream.py
+# Open http://<pi-ip>:8000/video  or  /snapshot
 
-Usage:
-    python3 stream.py
-    # then open http://<PI-IP>:8000/  (find IP with `hostname -I`)
+Repo
+----
+https://github.com/CDonohoe-Designs/PiCam_BoxDetector
 
-Endpoints:
-    GET /        - index with link
-    GET /video   - MJPEG stream
-    GET /healthz - health probe (200 OK)
-
-Notes:
-    - Recommend running inside venv: source ~/venvs/picam/bin/activate
-    - If headless, camera is fine without X; Picamera2 returns RGB arrays.
+License
+-------
+MIT
 """
 
-import signal
+__author__  = "Caoilte Donohoe"
+__version__ = "0.2.0"
+__license__ = "MIT"
+__date__    = "2025-10-03"
+
+import os
 import sys
 import time
-from typing import Generator, Optional
+import signal
+import logging
+from datetime import datetime
 
 import cv2
 import numpy as np
 from flask import Flask, Response
 from picamera2 import Picamera2
 
-# -------- Camera setup --------
-picam: Optional[Picamera2] = Picamera2()
-# 720p is a good balance for Pi 3
-config = picam.create_video_configuration(main={"size": (1280, 720)}, buffer_count=4)
+# --------------------------- Logging ---------------------------
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger("box_detector")
+
+# --------------------------- Paths -----------------------------
+# samples/ lives one level up from this script (repo root/samples)
+SCRIPTDIR   = os.path.dirname(os.path.abspath(__file__))
+SAMPLES_DIR = os.path.normpath(os.path.join(SCRIPTDIR, "..", "samples"))
+os.makedirs(SAMPLES_DIR, exist_ok=True)
+
+# --------------------------- Camera ----------------------------
+picam = Picamera2()
+config = picam.create_video_configuration(main={"size": (1280, 720)}, buffer_count=4)  # try (960,540) if needed
 picam.configure(config)
 picam.start()
-time.sleep(0.5)  # small warm-up
+time.sleep(0.5)
+log.info("Picamera2 started with %s", config)
 
-# -------- Flask app --------
+# --------------------------- App -------------------------------
 app = Flask(__name__)
 
-def find_boxes(frame_bgr: np.ndarray) -> np.ndarray:
-    """Return a frame with detected rectangular 'boxes' outlined."""
+def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
+    """
+    Detect rectangular 'boxes' and draw rectangles with a label.
+    Returns (annotated_image, detection_count).
+    """
     img = frame_bgr.copy()
     h, w = img.shape[:2]
 
-    # Preprocess
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     gray = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    # Edges
     edges = cv2.Canny(gray, 50, 150)
     edges = cv2.dilate(edges, None, iterations=1)
 
-    # Contours
     cnts, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # Filters
-    min_area = (w * h) * 0.002   # ignore tiny blobs
-    max_area = (w * h) * 0.8     # ignore near-full-frame blobs
+    min_area = (w * h) * 0.002
+    max_area = (w * h) * 0.80
 
+    detections = 0
     for c in cnts:
         area = cv2.contourArea(c)
         if area < min_area or area > max_area:
             continue
 
-        # Polygonal approximation
         peri = cv2.arcLength(c, True)
         approx = cv2.approxPolyDP(c, 0.02 * peri, True)
 
-        # 4-vertex convex shapes → candidate boxes
         if len(approx) == 4 and cv2.isContourConvex(approx):
             x, y, bw, bh = cv2.boundingRect(approx)
+            if bh == 0:
+                continue
+            aspect = bw / float(bh)
+            rect_area = bw * bh
+            rectangularity = area / rect_area if rect_area else 0
+            if 0.3 < aspect < 3.5 and rectangularity > 0.60:
+                detections += 1
+                cv2.rectangle(img, (x, y), (x + bw, y + bh), (0, 255, 0), 2)
+                cv2.putText(img, "BOX", (x, y - 6),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-            # Aspect/rectangularity checks
-            aspect = bw / float(bh) if bh > 0 else 0
-            if 0.3 < aspect < 3.5:
-                rect_area = bw * bh
-                if rect_area > 0 and (area / rect_area) > 0.6:
-                    cv2.rectangle(img, (x, y), (x + bw, y + bh), (0, 255, 0), 2)
-                    cv2.putText(img, "BOX", (x, y - 6),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-    return img
+    return img, detections
 
-def mjpeg_generator() -> Generator[bytes, None, None]:
-    """Yield MJPEG frames with drawn boxes."""
-    encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 80]  # tradeoff for Pi 3
+def mjpeg_generator():
+    """Capture frames, run detection, and yield an MJPEG stream."""
+    encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 80]  # lower for speed
+    fps_t0 = time.time()
+    frames = 0
     while True:
-        frame = picam.capture_array()  # RGB
-        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        boxed = find_boxes(frame_bgr)
+        frame_rgb = picam.capture_array()
+        frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+
+        boxed, count = find_boxes(frame_bgr)
+
+        # overlays
+        frames += 1
+        if frames % 15 == 0:
+            now = time.time()
+            fps = 15.0 / max(now - fps_t0, 1e-6)
+            fps_t0 = now
+            cv2.putText(boxed, f"FPS ~ {fps:.1f}", (10, 24),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+        cv2.putText(boxed, f"Boxes: {count}", (10, 48),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
         ok, jpg = cv2.imencode(".jpg", boxed, encode_params)
         if not ok:
+            log.warning("JPEG encode failed; skipping frame")
             continue
 
-        frame_bytes = jpg.tobytes()
         yield (b"--frame\r\n"
-               b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
+               b"Content-Type: image/jpeg\r\n\r\n" + jpg.tobytes() + b"\r\n")
 
 @app.route("/")
 def index():
     return ("<h2>Pi Box Detector</h2>"
-            "<p>Stream: <a href='/video'>/video</a></p>")
+            "<p>Stream: <a href='/video'>/video</a></p>"
+            "<p>Snapshot: <a href='/snapshot'>/snapshot</a></p>")
 
 @app.route("/video")
 def video():
-    return Response(mjpeg_generator(),
-                    mimetype="multipart/x-mixed-replace; boundary=frame")
+    return Response(mjpeg_generator(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
-@app.route("/healthz")
-def healthz():
-    return "ok", 200
+@app.route("/snapshot")
+def snapshot():
+    """Capture one frame, save original and detected images to samples/."""
+    frame_rgb = picam.capture_array()
+    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
-def _cleanup(*_args):
-    """Gracefully stop camera on SIGINT/SIGTERM."""
-    global picam
+    boxed, count = find_boxes(frame_bgr)
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base = f"capture_{ts}"
+
+    orig_path = os.path.join(SAMPLES_DIR, f"{base}_original.jpg")
+    det_path  = os.path.join(SAMPLES_DIR, f"{base}_detected.jpg")
+
+    cv2.imwrite(orig_path, frame_bgr)
+    cv2.imwrite(det_path, boxed)
+
+    log.info("Saved %s and %s (boxes=%d)", orig_path, det_path, count)
+    return (f"<pre>Saved:\n  samples/{os.path.basename(orig_path)}\n"
+            f"  samples/{os.path.basename(det_path)}\nboxes={count}</pre>"
+            "<p><a href='/video'>Back to stream</a></p>")
+
+# ---------------------- Graceful Shutdown ----------------------
+def _shutdown(*_):
+    log.info("Shutting down...")
     try:
-        if picam:
-            picam.stop()
-    except Exception:
-        pass
+        picam.stop()
+    except Exception as e:
+        log.warning("Error stopping camera: %s", e)
     sys.exit(0)
 
-if __name__ == "__main__":
-    # Graceful shutdown on Ctrl+C / systemd stop
-    signal.signal(signal.SIGINT, _cleanup)
-    signal.signal(signal.SIGTERM, _cleanup)
+signal.signal(signal.SIGINT, _shutdown)
+signal.signal(signal.SIGTERM, _shutdown)
 
-    # Bind to all interfaces on port 8000 (threaded for MJPEG)
-    app.run(host="0.0.0.0", port=8000, threaded=True, debug=False)
+# --------------------------- Main ------------------------------
+if __name__ == "__main__":
+    log.info("Starting Flask server on 0.0.0.0:8000")
+    app.run(host="0.0.0.0", port=8000, threaded=True)
+
