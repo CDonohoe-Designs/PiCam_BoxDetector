@@ -1,4 +1,4 @@
-# touched: snapshot-endpoint test 
+Touch: snapshot-endpoint test 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -75,11 +75,19 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
     h, w = img.shape[:2]
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    #gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
+    # slightly less blur so edges stay sharper
 
-    edges = cv2.Canny(gray, 50, 150)
-    edges = cv2.dilate(edges, None, iterations=1)
+    # edges = cv2.Canny(gray, 50, 150)
+    # edges = cv2.dilate(edges, None, iterations=1)
 
+    # lower Canny thresholds and strengthen edges a bit more
+    edges = cv2.Canny(gray, 25, 75)
+    edges = cv2.dilate(edges, None, iterations=2)
+    # close small gaps in edges (helps form clean contours)
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, None, iterations=1)
+    
     cnts, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     min_area = (w * h) * 0.002
