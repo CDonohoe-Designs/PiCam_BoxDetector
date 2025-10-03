@@ -87,11 +87,15 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
     edges = cv2.dilate(edges, None, iterations=2)
     # close small gaps in edges (helps form clean contours)
     edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, None, iterations=1)
-    
+
     cnts, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    min_area = (w * h) * 0.002
-    max_area = (w * h) * 0.80
+    # min_area = (w * h) * 0.002
+    # max_area = (w * h) * 0.80
+
+    min_area = (w * h) * 0.0006   # accept smaller candidates
+    max_area = (w * h) * 0.95     # allow larger boxes near frame size
+
 
     detections = 0
     for c in cnts:
