@@ -1,4 +1,4 @@
-#Touch: snapshot-endpoint test 
+#Touched: snapshot-endpoint test 2
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -61,6 +61,11 @@ config = picam.create_video_configuration(main={"size": (1280, 720)}, buffer_cou
 picam.configure(config)
 picam.start()
 time.sleep(0.5)
+#---------------------------Add----------------------------------
+try:
+    picam.set_controls({"Sharpness": 1.5, "Contrast": 1.0})
+except Exception:
+    pass
 log.info("Picamera2 started with %s", config)
 
 # --------------------------- App -------------------------------
@@ -68,34 +73,42 @@ app = Flask(__name__)
 
 def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
     """
-    Detect rectangular 'boxes' and draw rectangles with a label.
+    Threshold-based detector tuned for low-contrast cardboard on bright background.
+    Steps:
+      - LAB -> CLAHE on L channel for contrast
+      - Adaptive threshold (inverse) to get the box as white blobs
+      - Morph close to fill gaps
+      - Contours -> quad approx -> area/aspect/rectangularity gates
     Returns (annotated_image, detection_count).
     """
     img = frame_bgr.copy()
-    h, w = img.shape[:2]
+    H, W = img.shape[:2]
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    #gray = cv2.GaussianBlur(gray, (5, 5), 0)
-    gray = cv2.GaussianBlur(gray, (3, 3), 0)
-    # slightly less blur so edges stay sharper
+    # --- Contrast boost on luminance ---
+    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    L, A, B = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    Lc = clahe.apply(L)
 
-    # edges = cv2.Canny(gray, 50, 150)
-    # edges = cv2.dilate(edges, None, iterations=1)
+    # --- Adaptive threshold (invert: object -> white) ---
+    thr = cv2.adaptiveThreshold(
+        Lc, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY_INV,
+        25,   # block size (odd)
+        7     # C constant
+    )
 
-    # lower Canny thresholds and strengthen edges a bit more
-    edges = cv2.Canny(gray, 25, 75)
-    edges = cv2.dilate(edges, None, iterations=2)
-    # close small gaps in edges (helps form clean contours)
-    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, None, iterations=1)
+    # --- Clean up mask ---
+    thr = cv2.medianBlur(thr, 3)
+    thr = cv2.morphologyEx(thr, cv2.MORPH_CLOSE, None, iterations=2)
 
-    cnts, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # --- Contours from mask ---
+    cnts, _ = cv2.findContours(thr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # min_area = (w * h) * 0.002
-    # max_area = (w * h) * 0.80
-
-    min_area = (w * h) * 0.0006   # accept smaller candidates
-    max_area = (w * h) * 0.95     # allow larger boxes near frame size
-
+    # Gates: your box is big; allow near-full-frame
+    min_area = (W * H) * 0.02     # 2% of frame
+    max_area = (W * H) * 0.98     # up to almost full frame
 
     detections = 0
     for c in cnts:
@@ -104,26 +117,40 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
             continue
 
         peri = cv2.arcLength(c, True)
-        # approx = cv2.approxPolyDP(c, 0.02 * peri, True)
-        # slightly tighter epsilon keeps corners better
         approx = cv2.approxPolyDP(c, 0.015 * peri, True)
 
+        # Prefer convex quads, but also accept rotated rectangles via minAreaRect
         if len(approx) == 4 and cv2.isContourConvex(approx):
-            x, y, bw, bh = cv2.boundingRect(approx)
-            if bh == 0:
+            x, y, w, h = cv2.boundingRect(approx)
+            if h == 0: 
                 continue
-            aspect = bw / float(bh)
-            rect_area = bw * bh
+            aspect = w / float(h)
+            rect_area = w * h
             rectangularity = area / rect_area if rect_area else 0
-            # if 0.3 < aspect < 3.5 and rectangularity > 0.60:
-            # widen aspect ratio and allow slightly messier rectangles
-            if 0.2 < aspect < 6.0 and rectangularity > 0.45:
+            if 0.2 < aspect < 6.0 and rectangularity > 0.55:
                 detections += 1
-                cv2.rectangle(img, (x, y), (x + bw, y + bh), (0, 255, 0), 2)
+                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 cv2.putText(img, "BOX", (x, y - 6),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        else:
+            # Fallback: rotated rectangle fit (helps when edges are soft)
+            (cx, cy), (rw, rh), angle = cv2.minAreaRect(c)
+            rw, rh = max(rw, 1), max(rh, 1)
+            r_area = rw * rh
+            if r_area < min_area or r_area > (W * H) * 0.98:
+                continue
+            aspect = max(rw, rh) / min(rw, rh)
+            rectangularity = area / r_area if r_area else 0
+            if 0.2 < aspect < 6.0 and rectangularity > 0.50:
+                box = cv2.boxPoints(((cx, cy), (rw, rh), angle))
+                box = np.int32(box)
+                detections += 1
+                cv2.drawContours(img, [box], 0, (0, 255, 0), 2)
+                cv2.putText(img, "BOX", (int(cx) - 20, int(cy) - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
     return img, detections
+
 
 def mjpeg_generator():
     """Capture frames, run detection, and yield an MJPEG stream."""
