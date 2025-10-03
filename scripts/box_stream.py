@@ -46,6 +46,9 @@ import numpy as np
 from flask import Flask, Response
 from picamera2 import Picamera2
 
+from collections import deque
+LATCH_FRAMES = 10  # ~1/3–1/2 s at ~20–30 FPS
+
 print("BOX_DETECTOR MODE: threshold+largest-blob v0.3")
 
 # --------------------------- Logging ---------------------------
@@ -165,31 +168,50 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
 
 
 def mjpeg_generator():
-    """Capture frames, run detection, and yield an MJPEG stream."""
-    encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 80]  # lower for speed
-    fps_t0 = time.time()
-    frames = 0
+    """
+    Capture frames, run detection, and yield an MJPEG stream.
+    Adds:
+      - detection latch to avoid 1->0 flicker
+      - smoothed FPS overlay
+      - Boxes: <0/1> overlay using the latched state
+    """
+    encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 70]  # 70 is faster on Pi 3
+    latched = 0
+
+    # simple rolling FPS over the last N frame intervals
+    fps_intervals = deque(maxlen=15)
+    last_t = time.time()
+
     while True:
+        # Grab frame and convert to BGR for OpenCV
         frame_rgb = picam.capture_array()
         frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
+        # Run your detector (must return (annotated_img, count))
         boxed, count = find_boxes(frame_bgr)
 
-        # overlays
-        frames += 1
-        if frames % 15 == 0:
-            now = time.time()
-            fps = 15.0 / max(now - fps_t0, 1e-6)
-            fps_t0 = now
+        # ---- Latch logic: keep showing "present" briefly after a hit ----
+        if count > 0:
+            latched = LATCH_FRAMES
+        else:
+            latched = max(latched - 1, 0)
+        display_count = 1 if latched > 0 else 0
+
+        # ---- Overlays: FPS (smoothed) + Boxes ----
+        now = time.time()
+        fps_intervals.append(now - last_t)
+        last_t = now
+        if len(fps_intervals) >= 5:  # wait a few frames before showing
+            fps = len(fps_intervals) / sum(fps_intervals)
             cv2.putText(boxed, f"FPS ~ {fps:.1f}", (10, 24),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-        cv2.putText(boxed, f"Boxes: {count}", (10, 48),
+        cv2.putText(boxed, f"Boxes: {display_count}", (10, 48),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
+        # ---- Encode & yield MJPEG chunk ----
         ok, jpg = cv2.imencode(".jpg", boxed, encode_params)
         if not ok:
-            log.warning("JPEG encode failed; skipping frame")
             continue
 
         yield (b"--frame\r\n"
