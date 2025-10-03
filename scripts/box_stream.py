@@ -104,7 +104,9 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
             continue
 
         peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        # approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        # slightly tighter epsilon keeps corners better
+        approx = cv2.approxPolyDP(c, 0.015 * peri, True)
 
         if len(approx) == 4 and cv2.isContourConvex(approx):
             x, y, bw, bh = cv2.boundingRect(approx)
