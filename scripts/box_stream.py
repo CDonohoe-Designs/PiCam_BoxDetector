@@ -63,12 +63,13 @@ picam = Picamera2()
 config = picam.create_video_configuration(main={"size": (1280, 720)}, buffer_count=4)  # try (960,540) if needed
 picam.configure(config)
 picam.start()
-time.sleep(0.5)
+
 #---------------------------Add----------------------------------
 try:
     picam.set_controls({"Sharpness": 1.5, "Contrast": 1.0})
 except Exception:
     pass
+time.sleep(0.3)
 log.info("Picamera2 started with %s", config)
 
 # --------------------------- App -------------------------------
@@ -76,12 +77,11 @@ app = Flask(__name__)
 
 def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
     """
-    Threshold-based detector tuned for low-contrast cardboard on bright background.
-    Steps:
-      - LAB -> CLAHE on L channel for contrast
-      - Adaptive threshold (inverse) to get the box as white blobs
-      - Morph close to fill gaps
-      - Contours -> quad approx -> area/aspect/rectangularity gates
+    Robust box detector:
+      1) LAB/CLAHE -> adaptive threshold (inverse)
+      2) Pad the image so objects touching frame edges close properly
+      3) Contours -> convex quad OR rotated rect
+      4) Fallback: largest blob minAreaRect if all filters fail
     Returns (annotated_image, detection_count).
     """
     img = frame_bgr.copy()
@@ -98,22 +98,25 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
         Lc, 255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
         cv2.THRESH_BINARY_INV,
-        25,   # block size (odd)
-        7     # C constant
+        25, 7
     )
-
-    # --- Clean up mask ---
     thr = cv2.medianBlur(thr, 3)
     thr = cv2.morphologyEx(thr, cv2.MORPH_CLOSE, None, iterations=2)
 
-    # --- Contours from mask ---
-    cnts, _ = cv2.findContours(thr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # --- Pad both mask and RGB so frame-touching boxes are closed ---
+    PAD = 8
+    thr_pad = cv2.copyMakeBorder(thr, PAD, PAD, PAD, PAD, cv2.BORDER_CONSTANT, value=0)
+    img_pad = cv2.copyMakeBorder(img, PAD, PAD, PAD, PAD, cv2.BORDER_REPLICATE)
 
-    # Gates: your box is big; allow near-full-frame
-    min_area = (W * H) * 0.02     # 2% of frame
-    max_area = (W * H) * 0.98     # up to almost full frame
+    # --- Contours on padded mask ---
+    cnts, _ = cv2.findContours(thr_pad, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    min_area = (W * H) * 0.01    # start at 1% of frame
+    max_area = (W * H) * 0.99
 
     detections = 0
+    best = None  # keep track of the largest good candidate
+
     for c in cnts:
         area = cv2.contourArea(c)
         if area < min_area or area > max_area:
@@ -122,37 +125,43 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
         peri = cv2.arcLength(c, True)
         approx = cv2.approxPolyDP(c, 0.015 * peri, True)
 
-        # Prefer convex quads, but also accept rotated rectangles via minAreaRect
+        # try convex quad
         if len(approx) == 4 and cv2.isContourConvex(approx):
             x, y, w, h = cv2.boundingRect(approx)
-            if h == 0: 
+            if h == 0 or w == 0:
                 continue
-            aspect = w / float(h)
-            rect_area = w * h
-            rectangularity = area / rect_area if rect_area else 0
-            if 0.2 < aspect < 6.0 and rectangularity > 0.55:
-                detections += 1
-                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                cv2.putText(img, "BOX", (x, y - 6),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        else:
-            # Fallback: rotated rectangle fit (helps when edges are soft)
-            (cx, cy), (rw, rh), angle = cv2.minAreaRect(c)
-            rw, rh = max(rw, 1), max(rh, 1)
-            r_area = rw * rh
-            if r_area < min_area or r_area > (W * H) * 0.98:
-                continue
-            aspect = max(rw, rh) / min(rw, rh)
-            rectangularity = area / r_area if r_area else 0
+            aspect = max(w, h) / float(min(w, h))
+            rectangularity = area / (w * h)
             if 0.2 < aspect < 6.0 and rectangularity > 0.50:
-                box = cv2.boxPoints(((cx, cy), (rw, rh), angle))
-                box = np.int32(box)
+                # unpad draw coords
+                x, y = x - PAD, y - PAD
+                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 detections += 1
-                cv2.drawContours(img, [box], 0, (0, 255, 0), 2)
-                cv2.putText(img, "BOX", (int(cx) - 20, int(cy) - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                continue
+
+        # rotated rectangle fallback for this contour
+        (cx, cy), (rw, rh), angle = cv2.minAreaRect(c)
+        if rw < 1 or rh < 1:
+            continue
+        r_area = rw * rh
+        if r_area < min_area or r_area > max_area:
+            continue
+        aspect = max(rw, rh) / min(rw, rh)
+        rectangularity = area / r_area
+        if 0.2 < aspect < 6.0 and rectangularity > 0.45:
+            if best is None or area > best[0]:
+                best = (area, (cx, cy), (rw, rh), angle)
+
+    # draw best rotated rectangle if no quads were drawn
+    if detections == 0 and best is not None:
+        _, (cx, cy), (rw, rh), angle = best
+        box = cv2.boxPoints(((cx, cy), (rw, rh), angle))
+        box = np.int32(box - [PAD, PAD])  # unpad
+        cv2.drawContours(img, [box], 0, (0, 255, 0), 2)
+        detections = 1
 
     return img, detections
+
 
 
 def mjpeg_generator():
