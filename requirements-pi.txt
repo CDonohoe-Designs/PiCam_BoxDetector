@@ -1,0 +1,4 @@
+# Pip packages only; cv2 and Picamera2 come from apt on the Pi
+flask
+numpy
+imutil
