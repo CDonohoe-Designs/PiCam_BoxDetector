@@ -1,0 +1,5 @@
+# Pip-only environment for development machines
+flask
+numpy
+imutils
+opencv-python-headless
