@@ -1,6 +1,7 @@
 #Touched: snapshot-endpoint test 2
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 PiCam Box Detector — Raspberry Pi 3 Model B + PiCam v2.1
 Streams MJPEG video with rectangular "box" detection (edges → contours → 4-vertex approx)
@@ -44,6 +45,8 @@ import cv2
 import numpy as np
 from flask import Flask, Response
 from picamera2 import Picamera2
+
+print("BOX_DETECTOR MODE: threshold+largest-blob v0.3")
 
 # --------------------------- Logging ---------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
