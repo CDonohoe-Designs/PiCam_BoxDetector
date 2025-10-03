@@ -1,3 +1,5 @@
-picamera2
 flask
 opencv-python
+numpy
+# On Raspberry Pi we install picamera2 via apt, not pip
+# For dev PCs without camera: comment picamera2 usage or run on Pi only
