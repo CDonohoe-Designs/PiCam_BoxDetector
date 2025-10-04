@@ -70,13 +70,14 @@ picam = Picamera2()
 config = picam.create_video_configuration(main={"size": (1280, 720)}, buffer_count=4)  # try (960,540) if needed
 picam.configure(config)
 picam.start()
+time.sleep(0.3)
 
 #---------------------------Add----------------------------------
 try:
     picam.set_controls({"Sharpness": 1.5, "Contrast": 1.0})
 except Exception:
     pass
-time.sleep(0.3)
+
 log.info("Picamera2 started with %s", config)
 
 # --------------------------- App -------------------------------
