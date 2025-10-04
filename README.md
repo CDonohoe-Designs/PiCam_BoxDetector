@@ -96,7 +96,6 @@ journalctl -u box-detector -f
 | Route        | What I use it for                                       |
 |--------------|----------------------------------------------------------|
 | `/video`     | Main MJPEG stream with HUD + debounced detection         |
-| `/video_raw` | Raw stream (camera/Flask sanity check)                   |
 | `/snapshot`  | Saves `*_original.jpg` and `*_detected.jpg` to `samples/`|
 | `/health`    | JSON “ok” with version/uptime                            |
 
