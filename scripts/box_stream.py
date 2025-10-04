@@ -48,6 +48,11 @@ from picamera2 import Picamera2
 from flask import jsonify
 from collections import deque
 
+PORT         = int(os.getenv("BOX_PORT", "8000"))
+JPEG_QUALITY = int(os.getenv("BOX_JPEG_QUALITY", "70"))
+RES_W        = int(os.getenv("BOX_RES_W", "1280"))
+RES_H        = int(os.getenv("BOX_RES_H", "720"))
+
 # Debounce + warm-up (tweak if needed)
 HIT_THRESHOLD  = 4      # hits in a row to turn ON
 MISS_THRESHOLD = 10     # misses in a row to turn OFF
@@ -60,15 +65,16 @@ import socket
 from datetime import datetime
 
 def _get_ip() -> str:
-    """Best-effort local IP (no traffic sent)."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
-        s.close()
-        return ip
     except Exception:
-        return "0.0.0.0"
+        ip = "0.0.0.0"
+    finally:
+        try: s.close()
+        except Exception: pass
+    return ip
 
 HOST_IP = _get_ip()
 
@@ -85,7 +91,9 @@ os.makedirs(SAMPLES_DIR, exist_ok=True)
 
 # --------------------------- Camera ----------------------------
 picam = Picamera2()
-config = picam.create_video_configuration(main={"size": (1280, 720)}, buffer_count=4)  # try (960,540) if needed
+
+# config = picam.create_video_configuration(main={"size": (1280, 720)}, buffer_count=4)  # try (960,540) if needed
+config = picam.create_video_configuration(main={"size": (RES_W, RES_H)}, buffer_count=4)
 picam.configure(config)
 picam.start()
 time.sleep(0.3)
@@ -217,82 +225,92 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
 
 def mjpeg_generator():
     """
-    MJPEG stream with warm-up + hysteresis (debounce) and optional HUD.
-    Prevents startup false positives and 1↔0 flicker.
+    MJPEG stream with warm-up + hysteresis and robust exception handling.
+    Any per-frame error is logged and the loop continues (no 500).
     """
-    encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY if 'JPEG_QUALITY' in globals() else 70]
+    encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY]
 
-    # hysteresis / debounce state
-    present = False     # debounced presence state to display (0/1)
+    present = False
     hits = 0
     misses = 0
     frame_i = 0
 
-    # smoothed FPS
     fps_intervals = deque(maxlen=15)
     last_t = time.time()
 
     while True:
-        # capture
-        frame_rgb = picam.capture_array()
-        frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+        try:
+            # --- capture ---
+            frame_rgb = picam.capture_array()
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
-        # detect   -> must return (annotated_img, count)
-        boxed, raw_count = find_boxes(frame_bgr)
+            # --- detect ---
+            boxed, raw_count = find_boxes(frame_bgr)
 
-        frame_i += 1
+            frame_i += 1
 
-        # --- warm-up: ignore first N frames for stability ---
-        if frame_i <= STARTUP_WARMUP_FRAMES:
-            hits = 0
-            misses = 0
-            present = False
-        else:
-            # --- hysteresis ---
-            if raw_count > 0:
-                hits += 1
-                misses = 0
-                if not present and hits >= HIT_THRESHOLD:
-                    present = True
-            else:
-                misses += 1
-                hits = 0
-                if present and misses >= MISS_THRESHOLD:
-                    present = False
-
-        # --- FPS (smoothed) ---
-        now = time.time()
-        fps_intervals.append(now - last_t)
-        last_t = now
-        fps = None
-        if len(fps_intervals) >= 5:
-            fps = len(fps_intervals) / sum(fps_intervals)
-
-        # --- HUD / overlays ---
-        # If you added draw_hud(), use it; otherwise draw simple text
-        if 'draw_hud' in globals():
-            draw_hud(
-                boxed,
-                fps=fps,
-                present=(1 if present else 0),   # <- defined here
-                raw=raw_count                     # <- correct kwarg (not 'ra')
-            )
+            # --- warm-up ignore ---
             if frame_i <= STARTUP_WARMUP_FRAMES:
-                cv2.putText(boxed, "Warming up...", (16, 108),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        else:
-            if fps is not None:
-                cv2.putText(boxed, f"FPS ~ {fps:.1f}", (10, 24),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
-            cv2.putText(boxed, f"Boxes: {1 if present else 0}  (raw:{raw_count})",
-                        (10, 48), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+                hits = 0
+                misses = 0
+                present = False
+            else:
+                # hysteresis
+                if raw_count > 0:
+                    hits += 1; misses = 0
+                    if not present and hits >= HIT_THRESHOLD:
+                        present = True
+                else:
+                    misses += 1; hits = 0
+                    if present and misses >= MISS_THRESHOLD:
+                        present = False
 
-        # encode & yield MJPEG chunk
-        ok, jpg = cv2.imencode(".jpg", boxed, encode_params)
-        if not ok:
+            # --- FPS smoothing ---
+            now = time.time()
+            fps_intervals.append(now - last_t)
+            last_t = now
+            fps = None
+            if len(fps_intervals) >= 5:
+                fps = len(fps_intervals) / max(sum(fps_intervals), 1e-6)
+
+            # --- overlays (HUD if available, else minimal text) ---
+            if 'draw_hud' in globals():
+                try:
+                    draw_hud(
+                        boxed,
+                        fps=fps,
+                        present=(1 if present else 0),
+                        raw=raw_count
+                    )
+                    if frame_i <= STARTUP_WARMUP_FRAMES:
+                        cv2.putText(boxed, "Warming up...", (16, 108),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+                except Exception:
+                    # Never let HUD errors kill the stream
+                    pass
+            else:
+                if fps is not None:
+                    cv2.putText(boxed, f"FPS ~ {fps:.1f}", (10, 24),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+                cv2.putText(boxed, f"Boxes: {1 if present else 0}  (raw:{raw_count})",
+                            (10, 48), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+
+            # --- encode & yield ---
+            ok, jpg = cv2.imencode(".jpg", boxed, encode_params)
+            if not ok:
+                continue
+
+            yield (b"--frame\r\n"
+                   b"Content-Type: image/jpeg\r\n\r\n" + jpg.tobytes() + b"\r\n")
+
+        except Exception as e:
+            # Log and keep streaming rather than 500
+            try:
+                log.exception("mjpeg loop error")
+            except Exception:
+                print("mjpeg loop error:", e)
+            time.sleep(0.02)
             continue
-        yield (b"--frame\r\n"
-               b"Content-Type: image/jpeg\r\n\r\n" + jpg.tobytes() + b"\r\n")
 
 
 @app.route("/")
