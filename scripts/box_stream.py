@@ -45,11 +45,15 @@ import cv2
 import numpy as np
 from flask import Flask, Response
 from picamera2 import Picamera2
+from flask import jsonify
+
+
 
 from collections import deque
 LATCH_FRAMES = 10  # ~1/3–1/2 s at ~20–30 FPS
 
 print("BOX_DETECTOR MODE: threshold+largest-blob v0.3")
+
 
 # --------------------------- Logging ---------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -222,6 +226,10 @@ def index():
     return ("<h2>Pi Box Detector</h2>"
             "<p>Stream: <a href='/video'>/video</a></p>"
             "<p>Snapshot: <a href='/snapshot'>/snapshot</a></p>")
+
+@app.route("/health")
+def health():
+    return jsonify(status="ok", version=__version__), 200
 
 @app.route("/video")
 def video():
