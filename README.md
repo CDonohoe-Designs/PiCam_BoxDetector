@@ -139,10 +139,9 @@ To persist, u edit the `Environment=` lines in the unit, then `daemon-reload` + 
 
 ---
 
-## Demo playbook I use
+## Demo playbook
 
 1. `http://<pi-ip>:8000/health` → JSON “ok”.  
-2. `http://<pi-ip>:8000/video_raw` → camera path OK.  
 4. `http://<pi-ip>:8000/video` → HUD + stable “Boxes: 1”.  
 5. `/snapshot` → I show the two saved JPGs in `samples/`.
 
@@ -153,7 +152,7 @@ sudo systemctl restart box-detector && sleep 2 && curl -s http://127.0.0.1:8000/
 
 ---
 
-## Troubleshooting I ran into
+## Troubleshooting
 
 **“Device or resource busy”**  
 I stop the service before running the script manually:
@@ -175,16 +174,5 @@ sudo fuser -k 8000/tcp
 sudo systemctl restart box-detector
 ```
 
----
 
-## What I’ll add next
 
-- I’ll log ON/OFF transitions to `detections.csv` and (optionally) POST to a webhook.  
-- I’ll add an ROI to ignore frame borders or define a detection zone.  
-- I’ll package a tiny UI for a prettier dashboard, and try a small YOLOv8n path.
-
----
-
-## License
-
-MIT (or my preferred license).
