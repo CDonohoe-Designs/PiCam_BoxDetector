@@ -46,10 +46,12 @@ import numpy as np
 from flask import Flask, Response
 from picamera2 import Picamera2
 from flask import jsonify
-
-
-
 from collections import deque
+
+# Debounce + warm-up (tweak if needed)
+HIT_THRESHOLD  = 4      # hits in a row to turn ON
+MISS_THRESHOLD = 10     # misses in a row to turn OFF
+STARTUP_WARMUP_FRAMES = 30  # ignore first ~1 second
 LATCH_FRAMES = 10  # ~1/3–1/2 s at ~20–30 FPS
 
 print("BOX_DETECTOR MODE: threshold+largest-blob v0.3")
@@ -215,57 +217,83 @@ def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
 
 def mjpeg_generator():
     """
-    Capture frames, run detection, and yield an MJPEG stream.
-    Adds:
-      - detection latch to avoid 1->0 flicker
-      - smoothed FPS overlay
-      - Boxes: <0/1> overlay using the latched state
+    MJPEG stream with warm-up + hysteresis (debounce) and optional HUD.
+    Prevents startup false positives and 1↔0 flicker.
     """
-    encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 70]  # 70 is faster on Pi 3
-    latched = 0
+    encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY if 'JPEG_QUALITY' in globals() else 70]
 
-    # simple rolling FPS over the last N frame intervals
+    # hysteresis / debounce state
+    present = False     # debounced presence state to display (0/1)
+    hits = 0
+    misses = 0
+    frame_i = 0
+
+    # smoothed FPS
     fps_intervals = deque(maxlen=15)
     last_t = time.time()
 
     while True:
-        # Grab frame and convert to BGR for OpenCV
+        # capture
         frame_rgb = picam.capture_array()
         frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
-        # Run your detector (must return (annotated_img, count))
-        boxed, count = find_boxes(frame_bgr)
+        # detect   -> must return (annotated_img, count)
+        boxed, raw_count = find_boxes(frame_bgr)
 
-        # ---- Latch logic: keep showing "present" briefly after a hit ----
-        if count > 0:
-            latched = LATCH_FRAMES
+        frame_i += 1
+
+        # --- warm-up: ignore first N frames for stability ---
+        if frame_i <= STARTUP_WARMUP_FRAMES:
+            hits = 0
+            misses = 0
+            present = False
         else:
-            latched = max(latched - 1, 0)
-        display_count = 1 if latched > 0 else 0
+            # --- hysteresis ---
+            if raw_count > 0:
+                hits += 1
+                misses = 0
+                if not present and hits >= HIT_THRESHOLD:
+                    present = True
+            else:
+                misses += 1
+                hits = 0
+                if present and misses >= MISS_THRESHOLD:
+                    present = False
 
-        # ---- Overlays: FPS (smoothed) + Boxes ----
+        # --- FPS (smoothed) ---
         now = time.time()
         fps_intervals.append(now - last_t)
         last_t = now
-        if len(fps_intervals) >= 5:  # wait a few frames before showing
+        fps = None
+        if len(fps_intervals) >= 5:
             fps = len(fps_intervals) / sum(fps_intervals)
-            cv2.putText(boxed, f"FPS ~ {fps:.1f}", (10, 24),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-        cv2.putText(boxed, f"Boxes: {display_count}", (10, 48),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        
-        # Use your debounced state for 'present' (0/1). If you kept display_count, pass that.
-        draw_hud(boxed, fps=fps if len(fps_intervals) >= 5 else None,
-            present=(1 if present else 0), raw=raw_count)
+        # --- HUD / overlays ---
+        # If you added draw_hud(), use it; otherwise draw simple text
+        if 'draw_hud' in globals():
+            draw_hud(
+                boxed,
+                fps=fps,
+                present=(1 if present else 0),   # <- defined here
+                raw=raw_count                     # <- correct kwarg (not 'ra')
+            )
+            if frame_i <= STARTUP_WARMUP_FRAMES:
+                cv2.putText(boxed, "Warming up...", (16, 108),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        else:
+            if fps is not None:
+                cv2.putText(boxed, f"FPS ~ {fps:.1f}", (10, 24),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+            cv2.putText(boxed, f"Boxes: {1 if present else 0}  (raw:{raw_count})",
+                        (10, 48), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
 
-        # ---- Encode & yield MJPEG chunk ----
+        # encode & yield MJPEG chunk
         ok, jpg = cv2.imencode(".jpg", boxed, encode_params)
         if not ok:
             continue
-
         yield (b"--frame\r\n"
                b"Content-Type: image/jpeg\r\n\r\n" + jpg.tobytes() + b"\r\n")
+
 
 @app.route("/")
 def index():
