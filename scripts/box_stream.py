@@ -54,6 +54,22 @@ LATCH_FRAMES = 10  # ~1/3–1/2 s at ~20–30 FPS
 
 print("BOX_DETECTOR MODE: threshold+largest-blob v0.3")
 
+import socket
+from datetime import datetime
+
+def _get_ip() -> str:
+    """Best-effort local IP (no traffic sent)."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "0.0.0.0"
+
+HOST_IP = _get_ip()
+
 
 # --------------------------- Logging ---------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -82,6 +98,31 @@ log.info("Picamera2 started with %s", config)
 
 # --------------------------- App -------------------------------
 app = Flask(__name__)
+
+def draw_hud(img, fps: float | None, present: int, raw: int):
+    """
+    Overlay a small translucent panel with project info, FPS, and endpoints.
+    """
+    h, w = img.shape[:2]
+
+    # translucent panel
+    overlay = img.copy()
+    panel_h = 92
+    cv2.rectangle(overlay, (8, 8), (min(8 + int(w * 0.75), w - 8), 8 + panel_h), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.35, img, 0.65, 0, img)
+
+    # lines
+    ts = datetime.now().strftime("%H:%M:%S")
+    line1 = f"PiCam Box Detector v{__version__}  |  {RES_W}x{RES_H}  |  {ts}"
+    if fps is not None:
+        line2 = f"Boxes: {present}  (raw:{raw})  |  FPS: {fps:.1f}"
+    else:
+        line2 = f"Boxes: {present}  (raw:{raw})"
+    line3 = f"http://{HOST_IP}:{PORT}/video   /snapshot   /health"
+
+    cv2.putText(img, line1, (16, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.62, (255, 255, 255), 2)
+    cv2.putText(img, line2, (16, 56), cv2.FONT_HERSHEY_SIMPLEX, 0.62, (255, 255, 255), 2)
+    cv2.putText(img, line3, (16, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (220, 220, 220), 1)
 
 def find_boxes(frame_bgr: np.ndarray) -> tuple[np.ndarray, int]:
     """
@@ -213,6 +254,10 @@ def mjpeg_generator():
 
         cv2.putText(boxed, f"Boxes: {display_count}", (10, 48),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        
+        # Use your debounced state for 'present' (0/1). If you kept display_count, pass that.
+        draw_hud(boxed, fps=fps if len(fps_intervals) >= 5 else None,
+            present=(1 if present else 0), raw=raw_count)
 
         # ---- Encode & yield MJPEG chunk ----
         ok, jpg = cv2.imencode(".jpg", boxed, encode_params)
