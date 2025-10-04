@@ -223,7 +223,7 @@ def mjpeg_generator():
 
 @app.route("/")
 def index():
-    return ("<h2>Pi Box Detector</h2>"
+    return ("<h2>Tomra Demo by Caoilte Donohoe....Pi Box Detector</h2>"
             "<p>Stream: <a href='/video'>/video</a></p>"
             "<p>Snapshot: <a href='/snapshot'>/snapshot</a></p>")
 
