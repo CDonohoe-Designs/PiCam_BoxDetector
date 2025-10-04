@@ -7,8 +7,6 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 **Language:** Python 3
 
 
-## Repo structure
-
 ---
 
 ## What I built
