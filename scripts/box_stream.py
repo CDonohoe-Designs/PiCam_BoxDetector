@@ -47,6 +47,7 @@ from flask import Flask, Response
 from picamera2 import Picamera2
 from flask import jsonify
 from collections import deque
+START_TIME = time.time()
 
 PORT         = int(os.getenv("BOX_PORT", "8000"))
 JPEG_QUALITY = int(os.getenv("BOX_JPEG_QUALITY", "70"))
@@ -348,6 +349,18 @@ def snapshot():
     return (f"<pre>Saved:\n  samples/{os.path.basename(orig_path)}\n"
             f"  samples/{os.path.basename(det_path)}\nboxes={count}</pre>"
             "<p><a href='/video'>Back to stream</a></p>")
+
+@app.route("/config", methods=["GET"])
+def config_view():
+    return jsonify(
+        status="ok",
+        version=__version__,
+        ip=HOST_IP,
+        port=PORT,
+        res=[RES_W, RES_H],
+        jpeg_quality=JPEG_QUALITY,
+        uptime_s=int(time.time() - START_TIME),
+    ), 200
 
 # ---------------------- Graceful Shutdown ----------------------
 def _shutdown(*_):
