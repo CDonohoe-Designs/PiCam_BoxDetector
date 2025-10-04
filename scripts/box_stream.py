@@ -32,7 +32,7 @@ MIT
 __author__  = "Caoilte Donohoe"
 __version__ = "0.2.1"
 __license__ = "MIT"
-__date__    = "2025-10-03"
+__date__    = "2025-10-04"
 
 import os
 import sys
