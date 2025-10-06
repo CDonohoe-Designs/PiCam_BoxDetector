@@ -63,17 +63,10 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 
 ---
 
-## Figure 7 — Ops Proof: systemd Status
+## Figure 6 — Ops Proof: systemd Status
 
-![Figure 7 — systemd status](docs/images/10-systemd-status.png "box-detector active (running)")  
+![Figure 6 — systemd status](docs/images/10-systemd-status.png "box-detector active (running)")  
 *Service enabled and running on boot.*
-
----
-
-## Figure 8 — Ops Proof: Reachability
-
-![Figure 8 — Reachability](docs/images/11-browser-reachable.png "curl/http check")  
-*HTTP endpoint reachable on the LAN.*
 
 ---
 
