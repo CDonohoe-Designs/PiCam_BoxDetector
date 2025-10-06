@@ -55,13 +55,6 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 
 ---
 
-## Figure 5 — ROI / Overlay (Optional)
-
-![Figure 5 — ROI](docs/images/05-roi-overlay.jpg "ROI overlay on frame")  
-*Region-of-interest drawn to focus detection.*
-
----
-
 ## Figure 6 — Metrics: Raw CSV Transitions
 
 ![Figure 6 — CSV](docs/images/06-metrics-csv.png "detections.csv (timestamp,present)")  
