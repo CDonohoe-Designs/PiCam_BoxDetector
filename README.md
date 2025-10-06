@@ -49,14 +49,14 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 
 ---
 
-## Figure 5 — Hardware: Top View
+## Figure 4 — Hardware: Top View
 
 ![Figure 5 — Hardware Top](docs/images/08-hardware-top.jpg "Pi + camera assembly")  
 *Raspberry Pi + IMX219 camera assembly.*
 
 ---
 
-## Figure 6 — Hardware: Placement / Angle
+## Figure 5 — Hardware: Placement / Angle
 
 ![Figure 6 — Placement](docs/images/09-hardware-side.jpg "Typical installation geometry")  
 *Camera aimed at the test scene (distance/angle visible).*
