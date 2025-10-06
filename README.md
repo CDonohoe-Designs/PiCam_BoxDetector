@@ -68,7 +68,6 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 *Service enabled and running on boot.*
 
 ---
-
 ## Quickstart
 
 ```bash
@@ -79,19 +78,20 @@ cd ~
 git clone https://github.com/CDonohoe-Designs/PiCam_BoxDetector.git
 cd PiCam_BoxDetector
 python3 scripts/box_stream.py
+```
+
 Then open:
 
-http://<pi-ip>:8000/video (detection + HUD)
+- `http://<pi-ip>:8000/video` (detection + HUD)  
+- `http://<pi-ip>:8000/video_raw` (raw camera only)  
+- `http://<pi-ip>:8000/snapshot` (saves two JPGs to `samples/`)  
+- `http://<pi-ip>:8000/health`
 
-http://<pi-ip>:8000/video_raw (raw camera only)
+---
 
-http://<pi-ip>:8000/snapshot (saves two JPGs to samples/)
+## Run on boot (systemd)
 
-http://<pi-ip>:8000/health
-
-Run on boot (systemd)
-bash
-Copy code
+```bash
 sudo tee /etc/systemd/system/box-detector.service >/dev/null << 'EOF'
 [Unit]
 Description=PiCam Box Detector (Flask stream)
@@ -121,71 +121,81 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable --now box-detector
 sudo systemctl status box-detector --no-pager
-Endpoints I expose
-Route	What I use it for
-/video	Main MJPEG stream with HUD + debounced detection
-/video_raw	Raw stream (camera/Flask sanity check)
-/snapshot	Saves *_original.jpg and *_detected.jpg to samples/
-/health	JSON “ok” with version/uptime
-/config	IP, port, resolution, JPEG quality, uptime
+```
 
-Config via environment variables
-BOX_PORT (default 8000)
+---
 
-BOX_RES_W, BOX_RES_H (e.g., 960x540 runs nicely on a Pi 3)
+## Endpoints I expose
 
-BOX_JPEG_QUALITY (default 70)
+| Route        | What I use it for                                         |
+|--------------|------------------------------------------------------------|
+| `/video`     | Main MJPEG stream with HUD + debounced detection           |
+| `/video_raw` | Raw stream (camera/Flask sanity check)                     |
+| `/snapshot`  | Saves `*_original.jpg` and `*_detected.jpg` to `samples/`  |
+| `/health`    | JSON “ok” with version/uptime                              |
+| `/config`    | IP, port, resolution, JPEG quality, uptime                 |
+
+---
+
+## Config via environment variables
+
+- `BOX_PORT` (default `8000`)  
+- `BOX_RES_W`, `BOX_RES_H` (e.g., `960x540` runs nicely on a Pi 3)  
+- `BOX_JPEG_QUALITY` (default `70`)
 
 Set at runtime:
 
-bash
-Copy code
+```bash
 sudo systemctl set-environment BOX_RES_W=960 BOX_RES_H=540 BOX_JPEG_QUALITY=70
 sudo systemctl restart box-detector
-How it works (short)
-LAB + CLAHE → adaptive threshold → contours → convex quad / rotated rect
+```
 
-Warm-up (~1s) and hysteresis (hits/misses) to suppress flicker
+---
 
-Full-frame guard on startup to avoid false positives
+## How it works (short)
 
-Tuning notes
-Keep a small border between the box and frame edges (cleaner contours).
+- LAB + CLAHE → adaptive threshold → contours → convex quad / rotated rect  
+- Warm-up (~1s) and hysteresis (hits/misses) to suppress flicker  
+- Full-frame guard on startup to avoid false positives
 
-Avoid glare; even lighting works best.
+---
 
-For smoothness on a Pi 3, 960×540 at JPEG quality ~70 feels good.
+## Tuning notes
 
-My workflow
-bash
-Copy code
+- Keep a small border between the box and frame edges (cleaner contours).  
+- Avoid glare; even lighting works best.  
+- For smoothness on a Pi 3, `960×540` at JPEG quality ~70 feels good.
+
+---
+
+## My workflow
+
+```bash
 cd ~/PiCam_BoxDetector && git pull
 sudo systemctl restart box-detector
 journalctl -u box-detector -f
-Troubleshooting
-“Device or resource busy”
-Stop the service before running the script manually:
+```
 
-bash
-Copy code
+---
+
+## Troubleshooting
+
+**“Device or resource busy”** — stop the service before running the script manually:
+```bash
 sudo systemctl stop box-detector
 python3 scripts/box_stream.py
-500 on /video
-Open /video_raw to isolate camera/Flask. If raw works, tail logs:
+```
 
-bash
-Copy code
+**500 on /video** — use `/video_raw` to isolate camera/Flask; then check logs:
+```bash
 journalctl -u box-detector -n 80 --no-pager -l
-Guard the generator so per-frame hiccups don’t kill the stream.
+```
 
-Port already in use
-
-bash
-Copy code
+**Port already in use**
+```bash
 sudo fuser -k 8000/tcp
 sudo systemctl restart box-detector
-yaml
-Copy code
+```
 
 ---
 
