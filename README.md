@@ -6,7 +6,7 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 **OS:** Raspberry Pi OS (Bookworm)  
 **Language:** Python 3
 
----
+
 
 ## What I built
 
@@ -40,11 +40,7 @@ Then I open:
 - `http://<pi-ip>:8000/video_raw` (raw camera only)  
 - `http://<pi-ip>:8000/snapshot` (saves two JPGs to `samples/`)  
 - `http://<pi-ip>:8000/health`  
-- `http://<pi-ip>:8000/config`
 
-> If I see “Device or resource busy”, I make sure the systemd service isn’t running while I start the script manually.
-
----
 
 ## How I run it on boot (systemd)
 
@@ -86,9 +82,6 @@ sudo systemctl restart box-detector
 journalctl -u box-detector -f
 ```
 
-> I never run `python3 scripts/box_stream.py` while the service is active (the camera can only be opened by one process).
-
----
 
 ## Endpoints I expose
 
@@ -99,38 +92,29 @@ journalctl -u box-detector -f
 | `/snapshot`  | Saves `*_original.jpg` and `*_detected.jpg` to `samples/`|
 | `/health`    | JSON “ok” with version/uptime                            |
 | `/config`    | IP, port, resolution, JPEG quality, uptime               |
+=======
+| `/snapshot`  | Saves `*_original.jpg` and `*_detected.jpg` to `samples/`|
+| `/health`    | JSON “ok” with version/uptime                            |
+>>>>>>> 422cfba7e6c05c49fcba939680557be06388ef6a
 
 ---
 
 ## Config via environment variables
 
-I read these (with defaults) so I can tune without editing code:
-
 - `BOX_PORT` (default `8000`)
 - `BOX_RES_W`, `BOX_RES_H` (e.g., `960x540` runs nicely on a Pi 3)
 - `BOX_JPEG_QUALITY` (default `70`)
-- `BOX_WEBHOOK_URL` (optional; if I decide to POST events later)
 
 Set at runtime:
 ```bash
 sudo systemctl set-environment BOX_RES_W=960 BOX_RES_H=540 BOX_JPEG_QUALITY=70
 sudo systemctl restart box-detector
 ```
-To persist, I edit the `Environment=` lines in the unit, then `daemon-reload` + restart.
-
 ---
 
 ## How it works (short)
 
-1. I capture frames with Picamera2 at the configured resolution.  
-2. I boost luminance contrast (LAB + CLAHE), then apply **adaptive threshold (INV)**.  
-3. I clean the mask (median + close), then find **external contours**.  
-4. I try a convex **quad**; if that fails I use **minAreaRect** (rotated rect).  
-5. I filter by area/aspect/rectangularity and draw the best match.  
-6. I apply **warm-up** and **hysteresis** so “Boxes: 1” is stable.  
-7. I render a small HUD (version, FPS, endpoints) onto the stream.
 
----
 
 ## Tuning notes
 
@@ -140,13 +124,6 @@ To persist, I edit the `Environment=` lines in the unit, then `daemon-reload` + 
 
 ---
 
-## Demo playbook I use
-
-1. `http://<pi-ip>:8000/health` → JSON “ok”.  
-2. `http://<pi-ip>:8000/config` → resolution/JPEG/uptime.  
-3. `http://<pi-ip>:8000/video_raw` → camera path OK.  
-4. `http://<pi-ip>:8000/video` → HUD + stable “Boxes: 1”.  
-5. `/snapshot` → I show the two saved JPGs in `samples/`.
 
 **My “reset if needed” one-liner:**
 ```bash
@@ -155,21 +132,6 @@ sudo systemctl restart box-detector && sleep 2 && curl -s http://127.0.0.1:8000/
 
 ---
 
-## Repo structure
-
-```
-PiCam_BoxDetector/
-├─ scripts/
-│  ├─ box_stream.py        # Flask app, detection, endpoints, HUD
-│  └─ demo_reset.sh        # (optional) demo helper
-├─ samples/                # snapshot images land here
-├─ requirements.txt
-└─ README.md
-```
-
----
-
-## Troubleshooting I ran into
 
 **“Device or resource busy”**  
 I stop the service before running the script manually:
@@ -190,17 +152,3 @@ In code, I guard the generator so per-frame hiccups won’t kill the stream.
 sudo fuser -k 8000/tcp
 sudo systemctl restart box-detector
 ```
-
----
-
-## What I’ll add next
-
-- I’ll log ON/OFF transitions to `detections.csv` and (optionally) POST to a webhook.  
-- I’ll add an ROI to ignore frame borders or define a detection zone.  
-- I’ll package a tiny UI for a prettier dashboard, and try a small YOLOv8n path.
-
----
-
-## License
-
-MIT (or my preferred license).
