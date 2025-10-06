@@ -27,7 +27,7 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 ## Figure 1 — Landing
 
 ![Figure 1 — Landing](docs/images/01-landing.jpg "Landing page at http://<pi-ip>:8000")  
-*Browser landing page at `http://<pi-ip>:8000` with links to `/video` and `/snapshot`.*
+*Browser landing page at `http://192.168.1.49:8000` with links to `/video` and `/snapshot`.*
 
 ---
 
@@ -55,44 +55,30 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 
 ---
 
-## Figure 6 — Metrics: Raw CSV Transitions
+## Figure 5 — Hardware: Top View
 
-![Figure 6 — CSV](docs/images/06-metrics-csv.png "detections.csv (timestamp,present)")  
-*Each row is a debounced flip: `timestamp,present` (1=present, 0=absent).*
-
----
-
-## Figure 7 — Metrics: Timeline Chart
-
-![Figure 7 — Timeline](docs/images/07-metrics-chart.png "Presence step chart")  
-*Presence episodes over time derived from the CSV.*
-
----
-
-## Figure 8 — Hardware: Top View
-
-![Figure 8 — Hardware Top](docs/images/08-hardware-top.jpg "Pi + camera assembly")  
+![Figure 5 — Hardware Top](docs/images/08-hardware-top.jpg "Pi + camera assembly")  
 *Raspberry Pi + IMX219 camera assembly.*
 
 ---
 
-## Figure 9 — Hardware: Placement / Angle
+## Figure 6 — Hardware: Placement / Angle
 
-![Figure 9 — Placement](docs/images/09-hardware-side.jpg "Typical installation geometry")  
+![Figure 6 — Placement](docs/images/09-hardware-side.jpg "Typical installation geometry")  
 *Camera aimed at the test scene (distance/angle visible).*
 
 ---
 
-## Figure 10 — Ops Proof: systemd Status
+## Figure 7 — Ops Proof: systemd Status
 
-![Figure 10 — systemd status](docs/images/10-systemd-status.png "box-detector active (running)")  
+![Figure 7 — systemd status](docs/images/10-systemd-status.png "box-detector active (running)")  
 *Service enabled and running on boot.*
 
 ---
 
-## Figure 11 — Ops Proof: Reachability
+## Figure 8 — Ops Proof: Reachability
 
-![Figure 11 — Reachability](docs/images/11-browser-reachable.png "curl/http check")  
+![Figure 8 — Reachability](docs/images/11-browser-reachable.png "curl/http check")  
 *HTTP endpoint reachable on the LAN.*
 
 ---
@@ -107,4 +93,114 @@ cd ~
 git clone https://github.com/CDonohoe-Designs/PiCam_BoxDetector.git
 cd PiCam_BoxDetector
 python3 scripts/box_stream.py
+Then open:
+
+http://<pi-ip>:8000/video (detection + HUD)
+
+http://<pi-ip>:8000/video_raw (raw camera only)
+
+http://<pi-ip>:8000/snapshot (saves two JPGs to samples/)
+
+http://<pi-ip>:8000/health
+
+Run on boot (systemd)
+bash
+Copy code
+sudo tee /etc/systemd/system/box-detector.service >/dev/null << 'EOF'
+[Unit]
+Description=PiCam Box Detector (Flask stream)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rpicd
+WorkingDirectory=/home/rpicd/PiCam_BoxDetector
+ExecStartPre=/bin/sleep 3
+ExecStart=/usr/bin/python3 /home/rpicd/PiCam_BoxDetector/scripts/box_stream.py
+Restart=on-failure
+RestartSec=2
+
+# Optional env overrides (see “Config via env” below)
+Environment=PYTHONUNBUFFERED=1
+Environment=BOX_PORT=8000
+Environment=BOX_JPEG_QUALITY=70
+Environment=BOX_RES_W=960
+Environment=BOX_RES_H=540
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now box-detector
+sudo systemctl status box-detector --no-pager
+Endpoints I expose
+Route	What I use it for
+/video	Main MJPEG stream with HUD + debounced detection
+/video_raw	Raw stream (camera/Flask sanity check)
+/snapshot	Saves *_original.jpg and *_detected.jpg to samples/
+/health	JSON “ok” with version/uptime
+/config	IP, port, resolution, JPEG quality, uptime
+
+Config via environment variables
+BOX_PORT (default 8000)
+
+BOX_RES_W, BOX_RES_H (e.g., 960x540 runs nicely on a Pi 3)
+
+BOX_JPEG_QUALITY (default 70)
+
+Set at runtime:
+
+bash
+Copy code
+sudo systemctl set-environment BOX_RES_W=960 BOX_RES_H=540 BOX_JPEG_QUALITY=70
+sudo systemctl restart box-detector
+How it works (short)
+LAB + CLAHE → adaptive threshold → contours → convex quad / rotated rect
+
+Warm-up (~1s) and hysteresis (hits/misses) to suppress flicker
+
+Full-frame guard on startup to avoid false positives
+
+Tuning notes
+Keep a small border between the box and frame edges (cleaner contours).
+
+Avoid glare; even lighting works best.
+
+For smoothness on a Pi 3, 960×540 at JPEG quality ~70 feels good.
+
+My workflow
+bash
+Copy code
+cd ~/PiCam_BoxDetector && git pull
+sudo systemctl restart box-detector
+journalctl -u box-detector -f
+Troubleshooting
+“Device or resource busy”
+Stop the service before running the script manually:
+
+bash
+Copy code
+sudo systemctl stop box-detector
+python3 scripts/box_stream.py
+500 on /video
+Open /video_raw to isolate camera/Flask. If raw works, tail logs:
+
+bash
+Copy code
+journalctl -u box-detector -n 80 --no-pager -l
+Guard the generator so per-frame hiccups don’t kill the stream.
+
+Port already in use
+
+bash
+Copy code
+sudo fuser -k 8000/tcp
+sudo systemctl restart box-detector
+pgsql
+Copy code
+
+Paste that into GitHub’s editor for `README.md`, commit, and you’re set.
+::contentReference[oaicite:0]{index=0}
 
