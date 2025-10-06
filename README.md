@@ -163,30 +163,24 @@ cd ~/PiCam_BoxDetector && git pull
 sudo systemctl restart box-detector
 journalctl -u box-detector -f
 Troubleshooting
-“Device or resource busy”
-Stop the service before running the script manually:
+“Device or resource busy” — stop the service before running the script manually:
 
 bash
 Copy code
 sudo systemctl stop box-detector
 python3 scripts/box_stream.py
-500 on /video
-Open /video_raw to isolate camera/Flask. If raw works, tail logs:
+500 on /video — use /video_raw to isolate camera/Flask; then check logs:
 
 bash
 Copy code
 journalctl -u box-detector -n 80 --no-pager -l
-Guard the generator so per-frame hiccups don’t kill the stream.
-
 Port already in use
 
 bash
 Copy code
 sudo fuser -k 8000/tcp
 sudo systemctl restart box-detector
-pgsql
+markdown
 Copy code
 
-Paste that into GitHub’s editor for `README.md`, commit, and you’re set.
-::contentReference[oaicite:0]{index=0}
 
