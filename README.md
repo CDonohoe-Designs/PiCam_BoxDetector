@@ -22,15 +22,81 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 ---
 ## Figure 1 — Landing
 
-![Figure 1 — Landing](docs/images/01-landing.jpg "Figure 1 — Landing: Browser page at http://<pi-ip>:8000")
-*Browser landing page at `http://192.168.1.49:8000` with links to `/video` and `/snapshot`.*
-## Quick start (on the Pi)
+![Figure 1 — Landing](docs/images/01-landing.jpg "Landing page at http://<pi-ip>:8000")
+*Browser landing page at `http://<pi-ip>:8000` with links to `/video` and `/snapshot`.*
+
+---
 
 ## Figure 2 — System Architecture
 
-![Figure 2 — System Architecture](docs/images/02-architecture.png "Figure 2 — Architecture: Camera → Picamera2 → OpenCV → Debounce/CSV → Flask → Browser")
+![Figure 2 — System Architecture](docs/images/02-architecture.png "Camera → Picamera2 → OpenCV → Debounce/CSV → Flask → Browser")
 *Camera → Picamera2 → OpenCV Presence → Debounce & CSV → Flask HTTP → Browser.*
 
+---
+
+## Figure 3 — Stream UI (Detail)
+
+![Figure 3 — Stream UI](docs/images/03-stream-ui.jpg "Live MJPEG stream")
+*A clean 720p MJPEG stream served by Flask.*
+
+---
+
+## Figure 4 — Detection Sequence (Debounce Proof)
+
+| No subject | Subject enters | Stable PRESENT |
+|---|---|---|
+| ![No subject](docs/images/04-detection-seq-1.jpg "No subject") | ![Subject enters](docs/images/04-detection-seq-2.jpg "Subject enters") | ![Stable PRESENT](docs/images/04-detection-seq-3.jpg "Stable PRESENT") |
+
+*Debounce eliminates flicker during transitions.*
+
+---
+
+## Figure 5 — ROI / Overlay (Optional)
+
+![Figure 5 — ROI](docs/images/05-roi-overlay.jpg "ROI overlay on frame")
+*Region-of-interest drawn to focus detection.*
+
+---
+
+## Figure 6 — Metrics: Raw CSV Transitions
+
+![Figure 6 — CSV](docs/images/06-metrics-csv.png "detections.csv (timestamp,present)")
+*Each row is a debounced flip: `timestamp,present` (1=present, 0=absent).*
+
+---
+
+## Figure 7 — Metrics: Timeline Chart
+
+![Figure 7 — Timeline](docs/images/07-metrics-chart.png "Presence step chart")
+*Presence episodes over time derived from the CSV.*
+
+---
+
+## Figure 8 — Hardware: Top View
+
+![Figure 8 — Hardware Top](docs/images/08-hardware-top.jpg "Pi + camera assembly")
+*Raspberry Pi + IMX219 camera assembly.*
+
+---
+
+## Figure 9 — Hardware: Placement / Angle
+
+![Figure 9 — Placement](docs/images/09-hardware-side.jpg "Typical installation geometry")
+*Camera aimed at the test scene (distance/angle visible).*
+
+---
+
+## Figure 10 — Ops Proof: systemd Status
+
+![Figure 10 — systemd status](docs/images/10-systemd-status.png "box-stream active (running)")
+*Service enabled and running on boot.*
+
+---
+
+## Figure 11 — Ops Proof: Reachability
+
+![Figure 11 — Reachability](docs/images/11-browser-reachable.png "curl/http check")
+*HTTP endpoint reachable on the LAN.*
 ```bash
 sudo apt update
 sudo apt install -y python3-picamera2 python3-opencv python3-flask
