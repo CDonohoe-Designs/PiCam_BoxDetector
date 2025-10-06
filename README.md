@@ -79,6 +79,15 @@ cd ~
 git clone https://github.com/CDonohoe-Designs/PiCam_BoxDetector.git
 cd PiCam_BoxDetector
 python3 scripts/box_stream.py
+Then open:
+
+http://<pi-ip>:8000/video (detection + HUD)
+
+http://<pi-ip>:8000/video_raw (raw camera only)
+
+http://<pi-ip>:8000/snapshot (saves two JPGs to samples/)
+
+http://<pi-ip>:8000/health
 
 Run on boot (systemd)
 bash
@@ -154,24 +163,36 @@ cd ~/PiCam_BoxDetector && git pull
 sudo systemctl restart box-detector
 journalctl -u box-detector -f
 Troubleshooting
-“Device or resource busy” — stop the service before running the script manually:
+“Device or resource busy”
+Stop the service before running the script manually:
 
 bash
 Copy code
 sudo systemctl stop box-detector
 python3 scripts/box_stream.py
-500 on /video — use /video_raw to isolate camera/Flask; then check logs:
+500 on /video
+Open /video_raw to isolate camera/Flask. If raw works, tail logs:
 
 bash
 Copy code
 journalctl -u box-detector -n 80 --no-pager -l
+Guard the generator so per-frame hiccups don’t kill the stream.
+
 Port already in use
 
 bash
 Copy code
 sudo fuser -k 8000/tcp
 sudo systemctl restart box-detector
-markdown
+yaml
 Copy code
 
+---
 
+### Next steps
+- Paste this into your repo’s `README.md` and commit.  
+- Make sure `docs/images/01-11` exist with the exact names used above.  
+- Refresh the repo homepage—images should appear inline.
+
+If you want, send me the very top of your current README and I’ll splice these figures in **exactly where you want them** (without changing other sections).
+::contentReference[oaicite:0]{index=0}
