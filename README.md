@@ -36,16 +36,10 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 ![Figure 2 — System Architecture](docs/images/02-architecture.png "Camera → Picamera2 → OpenCV → Debounce/Hysteresis → Flask → Browser")  
 *Camera → Picamera2 → OpenCV (boxes) → Debounce/Hysteresis → Flask HTTP → Browser.*
 
----
-
-## Figure 3 — Stream UI (Detail)
-
-![Figure 3 — Stream UI](docs/images/03-stream-ui.jpg "Live MJPEG stream")  
-*A clean 720p MJPEG stream served by Flask.*
 
 ---
 
-## Figure 4 — Detection Sequence (Debounce Proof)
+## Figure 3 — Detection Sequence (Debounce Proof)
 
 | No subject | Subject enters | Stable PRESENT |
 |---|---|---|
