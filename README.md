@@ -6,7 +6,6 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 - **OS:** Raspberry Pi OS (Bookworm)  
 - **Language:** Python 3
 
-> Images live in `docs/images/`. Filenames below must match exactly (case-sensitive).
 
 ---
 
