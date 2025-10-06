@@ -7,7 +7,6 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 **Language:** Python 3
 
 
-
 ## What I built
 
 - I stream live video at **`/video`** with a small HUD (version, FPS, IP/port, endpoints).
