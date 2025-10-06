@@ -191,10 +191,4 @@ sudo systemctl restart box-detector
 
 ---
 
-### Next steps
-- Paste this into your repo’s `README.md` and commit.  
-- Make sure `docs/images/01-11` exist with the exact names used above.  
-- Refresh the repo homepage—images should appear inline.
 
-If you want, send me the very top of your current README and I’ll splice these figures in **exactly where you want them** (without changing other sections).
-::contentReference[oaicite:0]{index=0}
