@@ -21,8 +21,16 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 - I run it as a **systemd** service so it auto-starts on boot and restarts on failure.
 
 ---
+## Figure 1 — Landing
 
+![Figure 1 — Landing](docs/images/01-landing.jpg "Figure 1 — Landing: Browser page at http://<pi-ip>:8000")
+*Browser landing page at `http://192.168.1.49:8000` with links to `/video` and `/snapshot`.*
 ## Quick start (on the Pi)
+
+## Figure 2 — System Architecture
+
+![Figure 2 — System Architecture](docs/images/02-architecture.png "Figure 2 — Architecture: Camera → Picamera2 → OpenCV → Debounce/CSV → Flask → Browser")
+*Camera → Picamera2 → OpenCV Presence → Debounce & CSV → Flask HTTP → Browser.*
 
 ```bash
 sudo apt update
