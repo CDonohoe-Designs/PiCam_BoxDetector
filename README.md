@@ -79,15 +79,6 @@ cd ~
 git clone https://github.com/CDonohoe-Designs/PiCam_BoxDetector.git
 cd PiCam_BoxDetector
 python3 scripts/box_stream.py
-Then open:
-
-http://<pi-ip>:8000/video (detection + HUD)
-
-http://<pi-ip>:8000/video_raw (raw camera only)
-
-http://<pi-ip>:8000/snapshot (saves two JPGs to samples/)
-
-http://<pi-ip>:8000/health
 
 Run on boot (systemd)
 bash
