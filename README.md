@@ -12,7 +12,6 @@ I built a lightweight, real-time **box detector** on a Raspberry Pi using **Pica
 ## What I built
 
 - Live video at **`/video`** with a small HUD (version, FPS, IP/port, endpoints).  
-- **`/video_raw`** to bypass detection for fast debugging.  
 - **`/snapshot`** to save before/after pairs to `samples/`.  
 - **`/health`** and **`/config`** for quick checks during demos.  
 - Robust detection:
@@ -83,7 +82,6 @@ python3 scripts/box_stream.py
 Then open:
 
 - `http://<pi-ip>:8000/video` (detection + HUD)  
-- `http://<pi-ip>:8000/video_raw` (raw camera only)  
 - `http://<pi-ip>:8000/snapshot` (saves two JPGs to `samples/`)  
 - `http://<pi-ip>:8000/health`
 
@@ -130,7 +128,6 @@ sudo systemctl status box-detector --no-pager
 | Route        | What I use it for                                         |
 |--------------|------------------------------------------------------------|
 | `/video`     | Main MJPEG stream with HUD + debounced detection           |
-| `/video_raw` | Raw stream (camera/Flask sanity check)                     |
 | `/snapshot`  | Saves `*_original.jpg` and `*_detected.jpg` to `samples/`  |
 | `/health`    | JSON “ok” with version/uptime                              |
 | `/config`    | IP, port, resolution, JPEG quality, uptime                 |
@@ -184,11 +181,6 @@ journalctl -u box-detector -f
 ```bash
 sudo systemctl stop box-detector
 python3 scripts/box_stream.py
-```
-
-**500 on /video** — use `/video_raw` to isolate camera/Flask; then check logs:
-```bash
-journalctl -u box-detector -n 80 --no-pager -l
 ```
 
 **Port already in use**
