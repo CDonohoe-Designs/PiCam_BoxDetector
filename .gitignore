@@ -52,3 +52,20 @@ frames/
 
 # --- Jupyter (if you experiment later) ---
 .ipynb_checkpoints/
+
+# /etc/systemd/system/box_stream_yolo.service
+[Unit]
+Description=PiCam Box Detector YOLO (Flask)
+After=network.target
+
+[Service]
+Environment=HOST=0.0.0.0
+Environment=PORT=8000
+WorkingDirectory=/home/pi/PiCam_BoxDetector/scripts
+ExecStart=/usr/bin/python3 /home/pi/PiCam_BoxDetector/scripts/box_stream_yolo.py
+Restart=on-failure
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target
