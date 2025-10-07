@@ -1,0 +1,8 @@
+# Minimal deps for YOLO ONNX + Flask stream on Raspberry Pi
+flask>=3.0
+opencv-python==4.10.0.84
+numpy>=1.26
+onnxruntime==1.18.0
+# Picamera2 is installed via apt on Raspberry Pi OS (Bookworm):
+#   sudo apt update
+#   sudo apt install -y python3-picamera2
