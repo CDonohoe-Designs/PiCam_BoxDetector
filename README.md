@@ -4,8 +4,9 @@ I built a lightweight, real-time box detector on a Raspberry Pi using Picamera2 
 
 > **Two-stage approach**
 > - **Stage 1 — Classic OpenCV:** lightweight contour/quad detector using Picamera2 + OpenCV + Flask; same endpoints, fast on Pi 3B.
-> - **Stage 2 — YOLO (ONNX / OpenCV-DNN):** drop-in upgrade with a trained model for better robustness; endpoints and UI remain identical.
-## Stage 1 — Classic OpenCV
+> - **Stage 2 — YOLO (ONNX / OpenCV-DNN):** drop-in upgrade with a trained model for better robustness; Note: Some features not present as per Stage 1
+> - 
+## Setup
 
 
 - **Hardware:** Raspberry Pi 3 Model B + Pi Camera v2.1  
@@ -143,10 +144,10 @@ sudo systemctl status box-detector --no-pager
 ## Config via environment variables
 
 - `BOX_PORT` (default `8000`)  
-- `BOX_RES_W`, `BOX_RES_H` (e.g., `960x540` runs nicely on a Pi 3)  
+- `BOX_RES_W`, `BOX_RES_H` (e.g., `960x540` runs on my Pi 3)  
 - `BOX_JPEG_QUALITY` (default `70`)
 
-Set at runtime:
+I Set at runtime:
 
 ```bash
 sudo systemctl set-environment BOX_RES_W=960 BOX_RES_H=540 BOX_JPEG_QUALITY=70
@@ -195,21 +196,33 @@ sudo fuser -k 8000/tcp
 sudo systemctl restart box-detector
 ```
 
----
+# Stage 2 — OpenCV → YOLO (upgraded detector and what I added next)
 
+I kept the **same Flask app ** and swapped the detection core to a small **YOLO** model. This stage improves robustness in tricky lighting and angles while preserving the Stage‑1 UX and URLs.
 
+### Why I upgraded
+Classic heuristics are fast and explainable but can struggle with odd lighting, textures, or perspective. YOLO improves **recall/precision** and handles more variation. My YOLO script omitted the `/` landing page I will add it at a later date.
 
+### My training results (snapshot)
+- `runs/train/box320/weights/last.pt`, **3.7 MB**
+- Trained **120 epochs** (completed in ~0.314 hours on my host)
+- Input size **320×320** for speed on Pi 3B
 
----
+> These numbers come from my Ultralytics training logs. I deploy the resulting `last.pt` to the Pi under `models/box320/last.pt`.
 
-# Stage 2 — OpenCV → YOLO (Same endpoints, upgraded detector)
-
-I kept the **same Flask app and endpoints** and swapped the detection core to a small **YOLO** model. This stage improves robustness in tricky lighting and angles while preserving the Stage‑1 UX and URLs.
-
-- **Endpoints:** unchanged (`/video`, `/snapshot`, `/health`, `/config`)
 - **Models:** custom-trained or generic tiny YOLO, exported to **ONNX**
 - **Backends:** CPU with **ONNX Runtime** or **OpenCV DNN** (no PyTorch required on the Pi)
 - **Debounce/HUD:** unchanged — the “Boxes: 1” behavior remains stable
+
+  
+### Installed Ultralytics
+pip install ultralytics
+
+dataset yaml should define train/val paths and class name: [box]
+
+yolo detect train data=box.yaml model=yolov8n.pt imgsz=320 epochs=120 batch=16 name=box320
+
+best.pt / last.pt will appear in runs/train/box320/weights
 
 ## Quickstart (YOLO)
 
@@ -255,29 +268,24 @@ sudo systemctl enable --now box_stream_yolo
 sudo systemctl status box_stream_yolo --no-pager
 ```
 
-> Tip (venv): If you use a virtualenv, point `ExecStart=` to `/home/rpicd/PiCam_BoxDetector/.venv/bin/python` (or your venv’s python).
-
 ### Notes on backends
 
 - **ONNX Runtime (CPU):** Works if installed for your OS/arch; provides good compatibility with YOLO ONNX exports.  
-- **OpenCV DNN:** Loads the same `.onnx` without ONNX Runtime or PyTorch. This is the simplest option on older Pis; performance is similar for small models.
+- **OpenCV DNN:** Loads the same `.onnx` without ONNX Runtime or PyTorch. This is the simplest option because i useded an older RPi 3 Model 3.
 
-### Exporting your YOLO to ONNX (on your PC)
+### Exporting my YOLO to ONNX (on my PC)
 
 ```bash
-# Use the Ultralytics CLI on your PC/laptop
-# imgsz should match training size (e.g., 320 or 640)
+# Use the Ultralytics CLI on my PC/laptop
+# imgsz matched training size (320)
 yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=False simplify=True
 # Copy last.onnx -> ~/PiCam_BoxDetector/models/box320/last.onnx on the Pi
 ```
 
----
 
-## Figures — Stage 2 (YOLO)  *(placeholders; add images later)*
 
----
 
-### Figure 8 — Detection Sequence (YOLO, Debounce Proof)
+### Figure 7 — Detection Sequence (YOLO, Debounce Proof)
 
 | Subject enters (YOLO) | Stable PRESENT (YOLO) |
 |---|---|
@@ -291,18 +299,6 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 
 ---
 
-### Figure 9 — Config/Health (YOLO)
-![Figure 9 — Config/Health (YOLO)](docs/images/23-yolo-config-health.png "YOLO /config and /health")  
-*`/config` shows model path and thresholds; `/health` returns service status.*
-
----
-
-### Figure 10 — systemd Status (YOLO)
-![Figure 10 — systemd status (YOLO)](docs/images/24-yolo-systemd-status.png "box_stream_yolo active (running)")  
-*YOLO service enabled and running on boot.*
-
----
-
 ## How it works (Stage 2)
 
 - **Pre‑process**: resize/letterbox to `imgsz` (e.g., 320/640), normalize to 0–1.  
@@ -311,6 +307,21 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 - **Debounce & HUD**: identical to Stage 1 for stable **“Boxes: 1”** display.
 
 ---
+
+## Advances from Classic → YOLO (what improved)
+
+| Area | Classic OpenCV | YOLO |
+|---|---|---|
+| **Robustness** | Sensitive to lighting and texture changes | Learns features; better across backgrounds/angles |
+| **False Positives** | Needs tight tuning; may mis‑detect | Lower with trained data |
+| **Latency/FPS** | Higher FPS on Pi 3B | Heavier; may need 320 input or export |
+| **Explainability** | Transparent steps | Black‑box but measurable |
+| **Extendability** | Hard to add new shapes | Retrain with new labels |
+
+I chose YOLO once the UI/ops were proven and I had a labelled dataset.
+
+---
+
 
 ## Tuning notes (Stage 2)
 
@@ -321,24 +332,3 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 
 ---
 
-## Figures — YOLO by Box Type & View *(placeholders; add images later)*
-
-> Two box types with two viewpoints each. Keep the same style as the Stage‑1 (OpenCV) figures.
-
-### Brown Box — Front & Side (YOLO)
-
-| Front (YOLO) | Side (YOLO) |
-|---|---|
-| ![Brown box — front (YOLO)](docs/images/25-yolo-brown-front.jpg "Brown box — front (YOLO)") | ![Brown box — side (YOLO)](docs/images/26-yolo-brown-side.jpg "Brown box — side (YOLO)") |
-
-*Placeholder paths above mirror the OpenCV figure naming; replace with your YOLO screenshots when ready.*
-
----
-
-### Red/SparkFun Box — Front & Side (YOLO)
-
-| Front (YOLO) | Side (YOLO) |
-|---|---|
-| ![Red/SparkFun box — front (YOLO)](docs/images/27-yolo-red-front.jpg "Red/SparkFun box — front (YOLO)") | ![Red/SparkFun box — side (YOLO)](docs/images/28-yolo-red-side.jpg "Red/SparkFun box — side (YOLO)") |
-
-*Again, these are placeholders. Save your images at the paths above to have them render automatically.*
