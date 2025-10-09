@@ -285,7 +285,7 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 
 | Subject enters (YOLO) | Stable PRESENT (YOLO) |
 |---|---|
-| ![Subject enters (YOLO)](docs/images/22-yolo-detect-2.jpg "Subject enters (YOLO)") | ![Stable PRESENT (YOLO)](docs/images/22-yolo-detect-3.jpg "Stable PRESENT (YOLO)") |
+| ![Subject enters (YOLO)](docs/images/22-yolo-detect-2_RedBox.jpg "Subject enters (YOLO)") | ![Stable PRESENT (YOLO)](docs/images/22-yolo-detect-3_RedBox.jpg "Stable PRESENT (YOLO)") |
 
 *Same debounce behavior as Stage 1, now powered by YOLO.*
 
