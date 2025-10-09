@@ -4,7 +4,8 @@ I built a lightweight, real-time box detector on a Raspberry Pi using Picamera2 
 
 > **Two-stage approach**
 > - **Stage 1 — Classic OpenCV:** lightweight contour/quad detector using Picamera2 + OpenCV + Flask; same endpoints, fast on Pi 3B.
-> - **Stage 2 — YOLO (ONNX / OpenCV-DNN):** drop-in upgrade with a trained model for better robustness; endpoints and UI remain identical.
+> - **Stage 2 — YOLO (ONNX / OpenCV-DNN):** drop-in upgrade with a trained model for better robustness; Note: Some features not present as per Stage 1
+> - 
 ## Setup
 
 
@@ -195,13 +196,6 @@ sudo fuser -k 8000/tcp
 sudo systemctl restart box-detector
 ```
 
----
-
-
-
-
----
-
 # Stage 2 — OpenCV → YOLO (upgraded detector)
 
 I kept the **same Flask app ** and swapped the detection core to a small **YOLO** model. This stage improves robustness in tricky lighting and angles while preserving the Stage‑1 UX and URLs.
@@ -254,18 +248,16 @@ sudo systemctl enable --now box_stream_yolo
 sudo systemctl status box_stream_yolo --no-pager
 ```
 
-> Tip (venv): If you use a virtualenv, point `ExecStart=` to `/home/rpicd/PiCam_BoxDetector/.venv/bin/python` (or your venv’s python).
-
 ### Notes on backends
 
 - **ONNX Runtime (CPU):** Works if installed for your OS/arch; provides good compatibility with YOLO ONNX exports.  
-- **OpenCV DNN:** Loads the same `.onnx` without ONNX Runtime or PyTorch. This is the simplest option on older Pis; performance is similar for small models.
+- **OpenCV DNN:** Loads the same `.onnx` without ONNX Runtime or PyTorch. This is the simplest option because i useded an older RPi 3 Model 3.
 
-### Exporting your YOLO to ONNX (on your PC)
+### Exporting my YOLO to ONNX (on your PC)
 
 ```bash
 # Use the Ultralytics CLI on your PC/laptop
-# imgsz should match training size (e.g., 320 or 640)
+# imgsz matched training size (320)
 yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=False simplify=True
 # Copy last.onnx -> ~/PiCam_BoxDetector/models/box320/last.onnx on the Pi
 ```
