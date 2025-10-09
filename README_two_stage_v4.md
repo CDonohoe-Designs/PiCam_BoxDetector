@@ -288,6 +288,21 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 
 ---
 
+## Advances from Classic → YOLO (what improved)
+
+| Area | Classic OpenCV | YOLO |
+|---|---|---|
+| **Robustness** | Sensitive to lighting and texture changes | Learns features; better across backgrounds/angles |
+| **False Positives** | Needs tight tuning; may mis‑detect | Lower with trained data |
+| **Latency/FPS** | Higher FPS on Pi 3B | Heavier; may need 320 input or export |
+| **Explainability** | Transparent steps | Black‑box but measurable |
+| **Extendability** | Hard to add new shapes | Retrain with new labels |
+
+I chose YOLO once the UI/ops were proven and I had a labelled dataset.
+
+---
+
+
 ## Tuning notes (Stage 2)
 
 - Prefer a **small model** and **lower imgsz** on older Pis (e.g., 320).  
