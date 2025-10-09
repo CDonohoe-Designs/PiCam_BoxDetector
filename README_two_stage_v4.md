@@ -5,7 +5,7 @@ I built a lightweight, real-time box detector on a Raspberry Pi using Picamera2 
 > **Two-stage approach**
 > - **Stage 1 — Classic OpenCV:** lightweight contour/quad detector using Picamera2 + OpenCV + Flask; same endpoints, fast on Pi 3B.
 > - **Stage 2 — YOLO (ONNX / OpenCV-DNN):** drop-in upgrade with a trained model for better robustness; endpoints and UI remain identical.
-## Stage 1 — Classic OpenCV
+## Setup
 
 
 - **Hardware:** Raspberry Pi 3 Model B + Pi Camera v2.1  
