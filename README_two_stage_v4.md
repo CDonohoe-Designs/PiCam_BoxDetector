@@ -144,10 +144,10 @@ sudo systemctl status box-detector --no-pager
 ## Config via environment variables
 
 - `BOX_PORT` (default `8000`)  
-- `BOX_RES_W`, `BOX_RES_H` (e.g., `960x540` runs nicely on a Pi 3)  
+- `BOX_RES_W`, `BOX_RES_H` (e.g., `960x540` runs on my Pi 3)  
 - `BOX_JPEG_QUALITY` (default `70`)
 
-Set at runtime:
+I Set at runtime:
 
 ```bash
 sudo systemctl set-environment BOX_RES_W=960 BOX_RES_H=540 BOX_JPEG_QUALITY=70
