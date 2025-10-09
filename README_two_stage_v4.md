@@ -208,16 +208,18 @@ Classic heuristics are fast and explainable but can struggle with odd lighting, 
 - Trained **120 epochs** (completed in ~0.314 hours on my host)
 - Input size **320×320** for speed on Pi 3B
 
-- pip install ultralytics
-# dataset yaml should define train/val paths and class name: [box]
-yolo detect train data=box.yaml model=yolov8n.pt imgsz=320 epochs=120 batch=16 name=box320
-# best.pt / last.pt will appear in runs/train/box320/weights
-
 > These numbers come from my Ultralytics training logs. I deploy the resulting `last.pt` to the Pi under `models/box320/last.pt`.
 
 - **Models:** custom-trained or generic tiny YOLO, exported to **ONNX**
 - **Backends:** CPU with **ONNX Runtime** or **OpenCV DNN** (no PyTorch required on the Pi)
 - **Debounce/HUD:** unchanged — the “Boxes: 1” behavior remains stable
+
+  
+### Installed Ultralytics
+pip install ultralytics
+# dataset yaml should define train/val paths and class name: [box]
+yolo detect train data=box.yaml model=yolov8n.pt imgsz=320 epochs=120 batch=16 name=box320
+# best.pt / last.pt will appear in runs/train/box320/weights
 
 ## Quickstart (YOLO)
 
