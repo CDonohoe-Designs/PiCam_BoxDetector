@@ -1,12 +1,10 @@
 # PiCam Box Detector
 
-I built a lightweight, real-time **box detector** on a Raspberry Pi using **Picamera2 + OpenCV + Flask**. It streams an MJPEG feed, draws a green rectangle around boxes (e.g., parcels), and exposes endpoints for snapshots, health, and config. It’s tuned for demos with a short warm-up and **debounced detections** so the “Boxes: 1” indicator is rock-solid.
+I built a lightweight, real-time box detector on a Raspberry Pi using Picamera2 + OpenCV + Flask. It streams an MJPEG feed, draws a green rectangle around boxes (e.g., parcels), and exposes endpoints for snapshots, health, and config. It’s tuned for demos with a short warm-up and debounced detections so the **“Boxes: 1”** indicator is rock-solid.
 
-> **Two‑stage project overview**
->
-> • **Stage 1 — Classic OpenCV:** lightweight contour/quad detector using Picamera2 + OpenCV + Flask; same endpoints, fast on Pi 3B.
-> • **Stage 2 — YOLO (ONNX / OpenCV‑DNN):** drop‑in upgrade with a trained model for better robustness; endpoints and UI remain identical.
-
+> **Two-stage approach**
+> - **Stage 1 — Classic OpenCV:** lightweight contour/quad detector using Picamera2 + OpenCV + Flask; same endpoints, fast on Pi 3B.
+> - **Stage 2 — YOLO (ONNX / OpenCV-DNN):** drop-in upgrade with a trained model for better robustness; endpoints and UI remain identical.
 ## Stage 1 — Classic OpenCV
 
 
