@@ -309,24 +309,3 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 
 ---
 
-## Figures — YOLO by Box Type & View *(placeholders; add images later)*
-
-> Two box types with two viewpoints each. Keep the same style as the Stage‑1 (OpenCV) figures.
-
-### Brown Box — Front & Side (YOLO)
-
-| Front (YOLO) | Side (YOLO) |
-|---|---|
-| ![Brown box — front (YOLO)](docs/images/25-yolo-brown-front.jpg "Brown box — front (YOLO)") | ![Brown box — side (YOLO)](docs/images/26-yolo-brown-side.jpg "Brown box — side (YOLO)") |
-
-*Placeholder paths above mirror the OpenCV figure naming; replace with your YOLO screenshots when ready.*
-
----
-
-### Red/SparkFun Box — Front & Side (YOLO)
-
-| Front (YOLO) | Side (YOLO) |
-|---|---|
-| ![Red/SparkFun box — front (YOLO)](docs/images/27-yolo-red-front.jpg "Red/SparkFun box — front (YOLO)") | ![Red/SparkFun box — side (YOLO)](docs/images/28-yolo-red-side.jpg "Red/SparkFun box — side (YOLO)") |
-
-*Again, these are placeholders. Save your images at the paths above to have them render automatically.*
