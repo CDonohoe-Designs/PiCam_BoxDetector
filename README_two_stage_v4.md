@@ -275,12 +275,6 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 
 ## Figures — Stage 2 (YOLO)  *(placeholders; add images later)*
 
-> Keep the same look/feel as the Stage‑1 figures. Replace the placeholder paths below with your new screenshots/photos.
-
-### Figure 7 — Landing (YOLO)
-![Figure 7 — Landing (YOLO)](docs/images/21-yolo-landing.jpg "Landing page at http://<pi-ip>:8000 (YOLO)")  
-*Browser landing page with links to `/video`, `/snapshot`, etc. (YOLO backend).*
-
 ---
 
 ### Figure 8 — Detection Sequence (YOLO, Debounce Proof)
