@@ -202,11 +202,10 @@ sudo systemctl restart box-detector
 
 ---
 
-# Stage 2 — OpenCV → YOLO (Same endpoints, upgraded detector)
+# Stage 2 — OpenCV → YOLO (upgraded detector)
 
-I kept the **same Flask app and endpoints** and swapped the detection core to a small **YOLO** model. This stage improves robustness in tricky lighting and angles while preserving the Stage‑1 UX and URLs.
+I kept the **same Flask app ** and swapped the detection core to a small **YOLO** model. This stage improves robustness in tricky lighting and angles while preserving the Stage‑1 UX and URLs.
 
-- **Endpoints:** unchanged (`/video`, `/snapshot`, `/health`, `/config`)
 - **Models:** custom-trained or generic tiny YOLO, exported to **ONNX**
 - **Backends:** CPU with **ONNX Runtime** or **OpenCV DNN** (no PyTorch required on the Pi)
 - **Debounce/HUD:** unchanged — the “Boxes: 1” behavior remains stable
