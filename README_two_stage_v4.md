@@ -1,12 +1,10 @@
 # PiCam Box Detector
 
-I built a lightweight, real-time **box detector** on a Raspberry Pi using **Picamera2 + OpenCV + Flask**. It streams an MJPEG feed, draws a green rectangle around boxes (e.g., parcels), and exposes endpoints for snapshots, health, and config. It’s tuned for demos with a short warm-up and **debounced detections** so the “Boxes: 1” indicator is rock-solid.
+I built a lightweight, real-time box detector on a Raspberry Pi using Picamera2 + OpenCV + Flask. It streams an MJPEG feed, draws a green rectangle around boxes (e.g., parcels), and exposes endpoints for snapshots, health, and config. It’s tuned for demos with a short warm-up and debounced detections so the **“Boxes: 1”** indicator is rock-solid.
 
-> **Two‑stage project overview**
->
-> • **Stage 1 — Classic OpenCV:** lightweight contour/quad detector using Picamera2 + OpenCV + Flask; same endpoints, fast on Pi 3B.
-> • **Stage 2 — YOLO (ONNX / OpenCV‑DNN):** drop‑in upgrade with a trained model for better robustness; endpoints and UI remain identical.
-
+> **Two-stage approach**
+> - **Stage 1 — Classic OpenCV:** lightweight contour/quad detector using Picamera2 + OpenCV + Flask; same endpoints, fast on Pi 3B.
+> - **Stage 2 — YOLO (ONNX / OpenCV-DNN):** drop-in upgrade with a trained model for better robustness; endpoints and UI remain identical.
 ## Stage 1 — Classic OpenCV
 
 
@@ -277,19 +275,17 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 
 ## Figures — Stage 2 (YOLO)  *(placeholders; add images later)*
 
-> Keep the same look/feel as the Stage‑1 figures. Replace the placeholder paths below with your new screenshots/photos.
-
-### Figure 7 — Landing (YOLO)
-![Figure 7 — Landing (YOLO)](docs/images/21-yolo-landing.jpg "Landing page at http://<pi-ip>:8000 (YOLO)")  
-*Browser landing page with links to `/video`, `/snapshot`, etc. (YOLO backend).*
-
 ---
 
 ### Figure 8 — Detection Sequence (YOLO, Debounce Proof)
 
-| No subject (YOLO) | Subject enters (YOLO) | Stable PRESENT (YOLO) |
-|---|---|---|
-| ![No subject (YOLO)](docs/images/22-yolo-detect-1.jpg "No subject (YOLO)") | ![Subject enters (YOLO)](docs/images/22-yolo-detect-2.jpg "Subject enters (YOLO)") | ![Stable PRESENT (YOLO)](docs/images/22-yolo-detect-3.jpg "Stable PRESENT (YOLO)") |
+| Subject enters (YOLO) | Stable PRESENT (YOLO) |
+|---|---|
+| ![Subject enters (YOLO)](docs/images/22-yolo-detect-2_BrownBox.jpg "Subject enters (YOLO)") | ![Stable PRESENT (YOLO)](docs/images/22-yolo-detect-3_BrownBox.jpg "Stable PRESENT (YOLO)") |
+
+| Subject enters (YOLO) | Stable PRESENT (YOLO) |
+|---|---|
+| ![Subject enters (YOLO)](docs/images/22-yolo-detect-2.jpg "Subject enters (YOLO)") | ![Stable PRESENT (YOLO)](docs/images/22-yolo-detect-3.jpg "Stable PRESENT (YOLO)") |
 
 *Same debounce behavior as Stage 1, now powered by YOLO.*
 
