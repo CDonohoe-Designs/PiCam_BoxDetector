@@ -201,7 +201,7 @@ sudo systemctl restart box-detector
 I kept the **same Flask app ** and swapped the detection core to a small **YOLO** model. This stage improves robustness in tricky lighting and angles while preserving the Stage‑1 UX and URLs.
 
 ### Why I upgraded
-Classic heuristics are fast and explainable but can struggle with odd lighting, textures, or perspective. YOLO improves **recall/precision** and handles more variation. The YOLO script initially omitted the `/` landing page I will add it at a later date.
+Classic heuristics are fast and explainable but can struggle with odd lighting, textures, or perspective. YOLO improves **recall/precision** and handles more variation. My YOLO script omitted the `/` landing page I will add it at a later date.
 
 ### My training results (snapshot)
 - `runs/train/box320/weights/last.pt`, **3.7 MB**
