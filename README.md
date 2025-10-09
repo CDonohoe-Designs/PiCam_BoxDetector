@@ -198,23 +198,6 @@ sudo systemctl restart box-detector
 
 # Stage 2 — OpenCV → YOLO (upgraded detector and what I added next)
 
-flowchart LR
-  IMX[Camera IMX219\nRaspberry Pi CSI camera module]
-  CAP[Picamera2 Capture\nConfigure stream; deliver frames]
-  PRE[YOLO Preprocess\nLetterbox/resize → normalize (0–1)]
-  INF[YOLO Inference\nONNX Runtime (CPU)\nor OpenCV DNN]
-  POST[Postprocess + NMS\nDecode → NMS → 'box-like' filter]
-  DEB[Debounce + CSV\nState machine; log transitions to detections.csv]
-  FLASK[Flask HTTP\n/video  /snapshot  /health  /config]
-  BROWSER[Browser Client\nAny LAN browser; MJPEG viewer]
-  SYS[(systemd\n(auto-start on boot))]
-
-  IMX --> CAP --> PRE --> INF --> POST --> DEB --> FLASK --> BROWSER
-  SYS -. manages .-> FLASK
-
-  classDef node fill:#eef2f7,stroke:#333,stroke-width:1px,rx:10,ry:10,color:#111;
-  class IMX,CAP,PRE,INF,POST,DEB,FLASK,BROWSER node;
-
 I kept the **same Flask app ** and swapped the detection core to a small **YOLO** model. This stage improves robustness in tricky lighting and angles while preserving the Stage‑1 UX and URLs.
 
 ### Why I upgraded
