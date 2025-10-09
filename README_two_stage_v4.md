@@ -217,9 +217,12 @@ Classic heuristics are fast and explainable but can struggle with odd lighting, 
   
 ### Installed Ultralytics
 pip install ultralytics
-# dataset yaml should define train/val paths and class name: [box]
+
+dataset yaml should define train/val paths and class name: [box]
+
 yolo detect train data=box.yaml model=yolov8n.pt imgsz=320 epochs=120 batch=16 name=box320
-# best.pt / last.pt will appear in runs/train/box320/weights
+
+best.pt / last.pt will appear in runs/train/box320/weights
 
 ## Quickstart (YOLO)
 
