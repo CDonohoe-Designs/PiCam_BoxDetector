@@ -1,6 +1,12 @@
 # PiCam Box Detector
 
-I built a lightweight, real-time **box detector** on a Raspberry Pi using **Picamera2 + OpenCV + Flask**. It streams an MJPEG feed, draws a green rectangle around boxes (e.g., parcels), and exposes endpoints for snapshots, health, and config. It’s tuned for demos with a short warm-up and **debounced detections** so the “Boxes: 1” indicator is rock-solid.
+I built a lightweight, real-time box detector on a Raspberry Pi using Picamera2 + OpenCV + Flask. It streams an MJPEG feed, draws a green rectangle around boxes (e.g., parcels), and exposes endpoints for snapshots, health, and config. It’s tuned for demos with a short warm-up and debounced detections so the **“Boxes: 1”** indicator is rock-solid.
+
+> **Two-stage approach**
+> - **Stage 1 — Classic OpenCV:** lightweight contour/quad detector using Picamera2 + OpenCV + Flask; same endpoints, fast on Pi 3B.
+> - **Stage 2 — YOLO (ONNX / OpenCV-DNN):** drop-in upgrade with a trained model for better robustness; endpoints and UI remain identical.
+## Stage 1 — Classic OpenCV
+
 
 - **Hardware:** Raspberry Pi 3 Model B + Pi Camera v2.1  
 - **OS:** Raspberry Pi OS (Bookworm)  
@@ -192,3 +198,147 @@ sudo systemctl restart box-detector
 ---
 
 
+
+
+---
+
+# Stage 2 — OpenCV → YOLO (Same endpoints, upgraded detector)
+
+I kept the **same Flask app and endpoints** and swapped the detection core to a small **YOLO** model. This stage improves robustness in tricky lighting and angles while preserving the Stage‑1 UX and URLs.
+
+- **Endpoints:** unchanged (`/video`, `/snapshot`, `/health`, `/config`)
+- **Models:** custom-trained or generic tiny YOLO, exported to **ONNX**
+- **Backends:** CPU with **ONNX Runtime** or **OpenCV DNN** (no PyTorch required on the Pi)
+- **Debounce/HUD:** unchanged — the “Boxes: 1” behavior remains stable
+
+## Quickstart (YOLO)
+
+```bash
+# 1) Put your ONNX model on the Pi
+#    (e.g., last.onnx from your PC export)
+mkdir -p ~/PiCam_BoxDetector/models/box320
+scp last.onnx rpicd@<pi-ip>:~/PiCam_BoxDetector/models/box320/last.onnx
+
+# 2) Run the YOLO server
+# If your script is scripts/box_stream_yolo.py
+python3 ~/PiCam_BoxDetector/scripts/box_stream_yolo.py
+
+# 3) Open the same pages as Stage 1
+# http://<pi-ip>:8000/ (landing, if added)
+# http://<pi-ip>:8000/video
+# http://<pi-ip>:8000/snapshot
+# http://<pi-ip>:8000/health
+```
+
+### Run on boot (YOLO systemd)
+
+```ini
+# /etc/systemd/system/box_stream_yolo.service
+[Unit]
+Description=PiCam Box Detector (YOLO)
+After=network-online.target
+
+[Service]
+Type=simple
+User=rpicd
+WorkingDirectory=/home/rpicd/PiCam_BoxDetector
+ExecStart=/usr/bin/python3 /home/rpicd/PiCam_BoxDetector/scripts/box_stream_yolo.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now box_stream_yolo
+sudo systemctl status box_stream_yolo --no-pager
+```
+
+> Tip (venv): If you use a virtualenv, point `ExecStart=` to `/home/rpicd/PiCam_BoxDetector/.venv/bin/python` (or your venv’s python).
+
+### Notes on backends
+
+- **ONNX Runtime (CPU):** Works if installed for your OS/arch; provides good compatibility with YOLO ONNX exports.  
+- **OpenCV DNN:** Loads the same `.onnx` without ONNX Runtime or PyTorch. This is the simplest option on older Pis; performance is similar for small models.
+
+### Exporting your YOLO to ONNX (on your PC)
+
+```bash
+# Use the Ultralytics CLI on your PC/laptop
+# imgsz should match training size (e.g., 320 or 640)
+yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=False simplify=True
+# Copy last.onnx -> ~/PiCam_BoxDetector/models/box320/last.onnx on the Pi
+```
+
+---
+
+## Figures — Stage 2 (YOLO)  *(placeholders; add images later)*
+
+---
+
+### Figure 8 — Detection Sequence (YOLO, Debounce Proof)
+
+| Subject enters (YOLO) | Stable PRESENT (YOLO) |
+|---|---|
+| ![Subject enters (YOLO)](docs/images/22-yolo-detect-2_BrownBox.jpg "Subject enters (YOLO)") | ![Stable PRESENT (YOLO)](docs/images/22-yolo-detect-3_BrownBox.jpg "Stable PRESENT (YOLO)") |
+
+| Subject enters (YOLO) | Stable PRESENT (YOLO) |
+|---|---|
+| ![Subject enters (YOLO)](docs/images/22-yolo-detect-2_RedBox.jpg "Subject enters (YOLO)") | ![Stable PRESENT (YOLO)](docs/images/22-yolo-detect-3_RedBox.jpg "Stable PRESENT (YOLO)") |
+
+*Same debounce behavior as Stage 1, now powered by YOLO.*
+
+---
+
+### Figure 9 — Config/Health (YOLO)
+![Figure 9 — Config/Health (YOLO)](docs/images/23-yolo-config-health.png "YOLO /config and /health")  
+*`/config` shows model path and thresholds; `/health` returns service status.*
+
+---
+
+### Figure 10 — systemd Status (YOLO)
+![Figure 10 — systemd status (YOLO)](docs/images/24-yolo-systemd-status.png "box_stream_yolo active (running)")  
+*YOLO service enabled and running on boot.*
+
+---
+
+## How it works (Stage 2)
+
+- **Pre‑process**: resize/letterbox to `imgsz` (e.g., 320/640), normalize to 0–1.  
+- **Inference**: run ONNX model on CPU (ONNX Runtime or OpenCV DNN).  
+- **Post‑process**: decode YOLO outputs → NMS → “box‑like” filter (area & aspect).  
+- **Debounce & HUD**: identical to Stage 1 for stable **“Boxes: 1”** display.
+
+---
+
+## Tuning notes (Stage 2)
+
+- Prefer a **small model** and **lower imgsz** on older Pis (e.g., 320).  
+- Use **FRAME_SKIP** in your script to keep the stream responsive.  
+- Keep thresholds conservative (`CONF_THRESH`, `IOU_THRESH`) for low false positives.
+
+
+---
+
+## Figures — YOLO by Box Type & View *(placeholders; add images later)*
+
+> Two box types with two viewpoints each. Keep the same style as the Stage‑1 (OpenCV) figures.
+
+### Brown Box — Front & Side (YOLO)
+
+| Front (YOLO) | Side (YOLO) |
+|---|---|
+| ![Brown box — front (YOLO)](docs/images/25-yolo-brown-front.jpg "Brown box — front (YOLO)") | ![Brown box — side (YOLO)](docs/images/26-yolo-brown-side.jpg "Brown box — side (YOLO)") |
+
+*Placeholder paths above mirror the OpenCV figure naming; replace with your YOLO screenshots when ready.*
+
+---
+
+### Red/SparkFun Box — Front & Side (YOLO)
+
+| Front (YOLO) | Side (YOLO) |
+|---|---|
+| ![Red/SparkFun box — front (YOLO)](docs/images/27-yolo-red-front.jpg "Red/SparkFun box — front (YOLO)") | ![Red/SparkFun box — side (YOLO)](docs/images/28-yolo-red-side.jpg "Red/SparkFun box — side (YOLO)") |
+
+*Again, these are placeholders. Save your images at the paths above to have them render automatically.*
