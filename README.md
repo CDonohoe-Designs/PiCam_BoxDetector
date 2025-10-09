@@ -41,15 +41,18 @@ I built a lightweight, real-time box detector on a Raspberry Pi using Picamera2 
 ![Figure 2 — System Architecture](docs/images/02-architecture.png "Camera → Picamera2 → OpenCV → Debounce/Hysteresis → Flask → Browser")  
 *Camera → Picamera2 → OpenCV (boxes) → Debounce/Hysteresis → Flask HTTP → Browser.*
 
-## Figure 2 — System Architecture: Advanced Version Using YOLO
+
+
+## Figure 3 — System Architecture: Advanced Version Using YOLO
 
 ![Figure 2 — System Architecture](docs/images/architecture_stage2_yolo.png "Data path: Camera → Picamera2 → YOLO Preprocess → YOLO (ORT/DNN) → Postprocess/NMS → Debounce/CSV → Flask → Browser")  
 *Camera → Picamera2 → YOLO Preprocess → YOLO (ORT/DNN) → Postprocess/NMS → Debounce/CSV → Flask → Browser*
 
 
+
 ---
 
-## Figure 3 — Detection Sequence (Debounce Proof)
+## Figure 4 — Detection Sequence (Debounce Proof)
 
 | No subject | Subject enters | Stable PRESENT |
 |---|---|---|
@@ -59,21 +62,21 @@ I built a lightweight, real-time box detector on a Raspberry Pi using Picamera2 
 
 ---
 
-## Figure 4 — Hardware: Top View
+## Figure 5 — Hardware: Top View
 
 ![Figure 5 — Hardware Top](docs/images/08-hardware-top.jpg "Pi + camera assembly")  
 *Raspberry Pi + IMX219 camera assembly.*
 
 ---
 
-## Figure 5 — Hardware: Placement / Angle
+## Figure 6 — Hardware: Placement / Angle
 
 ![Figure 6 — Placement](docs/images/09-hardware-side.jpg "Typical installation geometry")  
 *Camera aimed at the test scene (distance/angle visible).*
 
 ---
 
-## Figure 6 — Ops Proof: systemd Status
+## Figure 7 — Ops Proof: systemd Status
 
 ![Figure 6 — systemd status](docs/images/10-systemd-status.png "box-detector active (running)")  
 *Service enabled and running on boot.*
@@ -290,7 +293,7 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 
 
 
-### Figure 7 — Detection Sequence (YOLO, Debounce Proof)
+### Figure 8 — Detection Sequence (YOLO, Debounce Proof)
 
 | Subject enters (YOLO) | Stable PRESENT (YOLO) |
 |---|---|
