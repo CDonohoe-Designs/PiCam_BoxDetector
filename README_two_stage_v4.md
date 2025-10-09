@@ -253,10 +253,10 @@ sudo systemctl status box_stream_yolo --no-pager
 - **ONNX Runtime (CPU):** Works if installed for your OS/arch; provides good compatibility with YOLO ONNX exports.  
 - **OpenCV DNN:** Loads the same `.onnx` without ONNX Runtime or PyTorch. This is the simplest option because i useded an older RPi 3 Model 3.
 
-### Exporting my YOLO to ONNX (on your PC)
+### Exporting my YOLO to ONNX (on my PC)
 
 ```bash
-# Use the Ultralytics CLI on your PC/laptop
+# Use the Ultralytics CLI on my PC/laptop
 # imgsz matched training size (320)
 yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=False simplify=True
 # Copy last.onnx -> ~/PiCam_BoxDetector/models/box320/last.onnx on the Pi
@@ -265,7 +265,7 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 
 
 
-### Figure 8 — Detection Sequence (YOLO, Debounce Proof)
+### Figure 7 — Detection Sequence (YOLO, Debounce Proof)
 
 | Subject enters (YOLO) | Stable PRESENT (YOLO) |
 |---|---|
