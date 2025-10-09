@@ -291,18 +291,6 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 
 ---
 
-### Figure 9 — Config/Health (YOLO)
-![Figure 9 — Config/Health (YOLO)](docs/images/23-yolo-config-health.png "YOLO /config and /health")  
-*`/config` shows model path and thresholds; `/health` returns service status.*
-
----
-
-### Figure 10 — systemd Status (YOLO)
-![Figure 10 — systemd status (YOLO)](docs/images/24-yolo-systemd-status.png "box_stream_yolo active (running)")  
-*YOLO service enabled and running on boot.*
-
----
-
 ## How it works (Stage 2)
 
 - **Pre‑process**: resize/letterbox to `imgsz` (e.g., 320/640), normalize to 0–1.  
