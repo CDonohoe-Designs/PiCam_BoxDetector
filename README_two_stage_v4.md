@@ -262,11 +262,8 @@ yolo export model="/path/to/last.pt" format=onnx imgsz=320 opset=12 dynamic=Fals
 # Copy last.onnx -> ~/PiCam_BoxDetector/models/box320/last.onnx on the Pi
 ```
 
----
 
-## Figures — Stage 2 (YOLO)  *(placeholders; add images later)*
 
----
 
 ### Figure 8 — Detection Sequence (YOLO, Debounce Proof)
 
