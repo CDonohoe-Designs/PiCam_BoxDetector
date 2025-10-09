@@ -26,7 +26,7 @@ from datetime import datetime
 
 import numpy as np
 import cv2
-from flask import Flask, Response, jsonify, send_file, url_for
+from flask import Flask, Response, jsonify, send_file
 from picamera2 import Picamera2
 import onnxruntime as ort
 
@@ -404,54 +404,6 @@ def cfg():
     info = dict(CONFIG)
     info["model_loaded"] = YOLO.model_path
     return jsonify(info)
-
-@app.route("/")
-def index():
-    try:
-        links = {
-            "video": url_for("video"),
-            "video_raw": url_for("video_raw"),
-            "snapshot": url_for("snapshot"),
-            "health": url_for("health"),
-            "config": url_for("cfg"),  # use "config" here if your route function is named config
-        }
-    except Exception:
-        links = {
-            "video": "/video",
-            "video_raw": "/video_raw",
-            "snapshot": "/snapshot",
-            "health": "/health",
-            "config": "/config",
-        }
-
-    template = """
-    <!doctype html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>PiCam Box Detector (YOLO)</title>
-      <style>
-        body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }}
-        h1 {{ margin-bottom: 8px; }}
-        ul {{ line-height: 1.6; }}
-        code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 6px; }}
-      </style>
-    </head>
-    <body>
-      <h1>PiCam Box Detector (YOLO)</h1>
-      <ul>
-        <li><a href="{video}"><code>/video</code></a> – MJPEG with detections &amp; HUD</li>
-        <li><a href="{video_raw}"><code>/video_raw</code></a> – MJPEG without detection</li>
-        <li><a href="{snapshot}"><code>/snapshot</code></a> – Save before/after images</li>
-        <li><a href="{health}"><code>/health</code></a> – Service health</li>
-        <li><a href="{config}"><code>/config</code></a> – Runtime configuration JSON</li>
-      </ul>
-    </body>
-    </html>
-    """
-    return template.format(**links)
-
 
 def main():
     # Prefer 0.0.0.0:8000 so you can view from your laptop/phone
