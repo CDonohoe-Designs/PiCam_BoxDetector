@@ -196,9 +196,19 @@ sudo fuser -k 8000/tcp
 sudo systemctl restart box-detector
 ```
 
-# Stage 2 — OpenCV → YOLO (upgraded detector)
+# Stage 2 — OpenCV → YOLO (upgraded detector and what I added next)
 
 I kept the **same Flask app ** and swapped the detection core to a small **YOLO** model. This stage improves robustness in tricky lighting and angles while preserving the Stage‑1 UX and URLs.
+
+### Why I upgraded
+Classic heuristics are fast and explainable but can struggle with odd lighting, textures, or perspective. YOLO improves **recall/precision** and handles more variation. The YOLO script initially omitted the `/` landing page I will add it at a later date.
+
+### My training results (snapshot)
+- `runs/train/box320/weights/last.pt`, **3.7 MB**
+- Trained **120 epochs** (completed in ~0.314 hours on my host)
+- Input size **320×320** for speed on Pi 3B
+
+> These numbers come from my Ultralytics training logs. I deploy the resulting `last.pt` to the Pi under `models/box320/last.pt`.
 
 - **Models:** custom-trained or generic tiny YOLO, exported to **ONNX**
 - **Backends:** CPU with **ONNX Runtime** or **OpenCV DNN** (no PyTorch required on the Pi)
