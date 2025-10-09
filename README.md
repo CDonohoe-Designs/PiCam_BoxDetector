@@ -36,10 +36,15 @@ I built a lightweight, real-time box detector on a Raspberry Pi using Picamera2 
 
 ---
 
-## Figure 2 — System Architecture
+## Figure 2 — System Architecture: Classic OpenCV
 
 ![Figure 2 — System Architecture](docs/images/02-architecture.png "Camera → Picamera2 → OpenCV → Debounce/Hysteresis → Flask → Browser")  
 *Camera → Picamera2 → OpenCV (boxes) → Debounce/Hysteresis → Flask HTTP → Browser.*
+
+## Figure 2 — System Architecture: Advanced Version Using YOLO
+
+![Figure 2 — System Architecture](docs/images/architecture_stage2_yolo.png "Data path: Camera → Picamera2 → YOLO Preprocess → YOLO (ORT/DNN) → Postprocess/NMS → Debounce/CSV → Flask → Browser")  
+*Camera → Picamera2 → YOLO Preprocess → YOLO (ORT/DNN) → Postprocess/NMS → Debounce/CSV → Flask → Browser*
 
 
 ---
